@@ -1,0 +1,24 @@
+{
+    "name": "Block Blast - 블록 퍼즐",
+    "short_name": "Block Blast",
+    "description": "중독성 있는 블록 퍼즐 게임! 블록을 배치하고 줄을 완성하여 점수를 올리세요!",
+    "start_url": "/index.html",
+    "display": "standalone",
+    "orientation": "portrait",
+    "background_color": "#1a1a2e",
+    "theme_color": "#1a1a2e",
+    "icons": [
+        {
+            "src": "assets/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "assets/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ],
+    "categories": ["games", "entertainment"],
+    "lang": "ko"
+}

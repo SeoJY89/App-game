@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="description" content="Block Blast - 중독성 있는 블록 퍼즐 게임! 블록을 배치하고 줄을 완성하여 점수를 올리세요!">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <title>Block Blast - 블록 퍼즐</title>
+
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
+    <link rel="apple-touch-icon" href="assets/icon-192.png">
+
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Start Screen -->
+        <div id="start-screen" class="screen active">
+            <div class="start-content">
+                <div class="logo">
+                    <div class="logo-blocks">
+                        <div class="logo-block b1"></div>
+                        <div class="logo-block b2"></div>
+                        <div class="logo-block b3"></div>
+                        <div class="logo-block b4"></div>
+                    </div>
+                    <h1>Block<span>Blast</span></h1>
+                    <p class="subtitle">블록 퍼즐</p>
+                </div>
+                <div class="best-score-display">
+                    <span>최고 점수</span>
+                    <span id="start-best-score">0</span>
+                </div>
+                <button id="play-btn" class="btn btn-primary pulse">게임 시작</button>
+                <button id="how-to-play-btn" class="btn btn-secondary">게임 방법</button>
+            </div>
+        </div>
+
+        <!-- How To Play Screen -->
+        <div id="tutorial-screen" class="screen">
+            <div class="tutorial-content">
+                <h2>게임 방법</h2>
+                <div class="tutorial-steps">
+                    <div class="tutorial-step">
+                        <div class="step-icon">👆</div>
+                        <p>블록을 드래그하여<br>보드에 배치하세요</p>
+                    </div>
+                    <div class="tutorial-step">
+                        <div class="step-icon">📏</div>
+                        <p>가로 또는 세로 줄을<br>완성하면 줄이 사라집니다</p>
+                    </div>
+                    <div class="tutorial-step">
+                        <div class="step-icon">🔥</div>
+                        <p>연속으로 줄을 없애면<br>콤보 보너스!</p>
+                    </div>
+                    <div class="tutorial-step">
+                        <div class="step-icon">🏆</div>
+                        <p>더 이상 블록을 놓을 수 없으면<br>게임 오버!</p>
+                    </div>
+                </div>
+                <button id="tutorial-back-btn" class="btn btn-primary">돌아가기</button>
+            </div>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="game-screen" class="screen">
+            <div class="game-header">
+                <div class="score-section">
+                    <div class="score-box">
+                        <span class="score-label">점수</span>
+                        <span id="current-score" class="score-value">0</span>
+                    </div>
+                    <div class="score-box best">
+                        <span class="score-label">최고</span>
+                        <span id="best-score" class="score-value">0</span>
+                    </div>
+                </div>
+                <div id="combo-display" class="combo-display hidden">
+                    <span id="combo-text">COMBO x2</span>
+                </div>
+            </div>
+
+            <div class="game-board-container">
+                <canvas id="game-canvas"></canvas>
+                <div id="score-popup-container"></div>
+            </div>
+
+            <div id="block-tray" class="block-tray">
+                <div class="tray-slot" data-slot="0"></div>
+                <div class="tray-slot" data-slot="1"></div>
+                <div class="tray-slot" data-slot="2"></div>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="gameover-screen" class="screen">
+            <div class="gameover-content">
+                <h2>게임 오버</h2>
+                <div class="final-score">
+                    <span>최종 점수</span>
+                    <span id="final-score-value" class="big-score">0</span>
+                </div>
+                <div id="new-record" class="new-record hidden">
+                    <span>🎉 새로운 기록! 🎉</span>
+                </div>
+                <div class="gameover-stats">
+                    <div class="stat">
+                        <span class="stat-label">최고 콤보</span>
+                        <span id="max-combo" class="stat-value">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">제거한 줄</span>
+                        <span id="lines-cleared" class="stat-value">0</span>
+                    </div>
+                </div>
+                <button id="restart-btn" class="btn btn-primary pulse">다시 하기</button>
+                <button id="home-btn" class="btn btn-secondary">홈으로</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/game.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
