@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#1a1a2e">
-    <meta name="description" content="Block Blast - 중독성 있는 블록 퍼즐 게임! 블록을 배치하고 줄을 완성하여 점수를 올리세요!">
+    <meta name="theme-color" content="#87CEEB">
+    <meta name="description" content="연기피해! - 심부름 가는 아이가 담배연기를 피해 목적지까지 가는 2D 아케이드 게임">
     <meta name="mobile-web-app-capable" content="yes">
 
-    <title>Block Blast - 블록 퍼즐</title>
+    <title>연기피해! - 심부름 대작전</title>
 
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
@@ -23,18 +23,15 @@
         <div id="start-screen" class="screen active">
             <div class="start-content">
                 <div class="logo">
-                    <div class="logo-blocks">
-                        <div class="logo-block b1"></div>
-                        <div class="logo-block b2"></div>
-                        <div class="logo-block b3"></div>
-                        <div class="logo-block b4"></div>
+                    <div class="logo-icon">
+                        <canvas id="logo-canvas" width="120" height="120"></canvas>
                     </div>
-                    <h1>Block<span>Blast</span></h1>
-                    <p class="subtitle">블록 퍼즐</p>
+                    <h1>연기<span>피해!</span></h1>
+                    <p class="subtitle">심부름 대작전</p>
                 </div>
                 <div class="best-score-display">
-                    <span>최고 점수</span>
-                    <span id="start-best-score">0</span>
+                    <span>최고 기록</span>
+                    <span id="start-best-score">0m</span>
                 </div>
                 <button id="play-btn" class="btn btn-primary pulse">게임 시작</button>
                 <button id="how-to-play-btn" class="btn btn-secondary">게임 방법</button>
@@ -48,19 +45,19 @@
                 <div class="tutorial-steps">
                     <div class="tutorial-step">
                         <div class="step-icon">👆</div>
-                        <p>블록을 드래그하여<br>보드에 배치하세요</p>
+                        <p>화면 위/아래를 터치하거나<br>방향키로 이동하세요</p>
                     </div>
                     <div class="tutorial-step">
-                        <div class="step-icon">📏</div>
-                        <p>가로 또는 세로 줄을<br>완성하면 줄이 사라집니다</p>
+                        <div class="step-icon">🚬</div>
+                        <p>담배 피우는 사람들의<br>연기를 피하세요!</p>
                     </div>
                     <div class="tutorial-step">
-                        <div class="step-icon">🔥</div>
-                        <p>연속으로 줄을 없애면<br>콤보 보너스!</p>
+                        <div class="step-icon">💨</div>
+                        <p>연기에 닿으면<br>숨참기 게이지가 줄어요</p>
                     </div>
                     <div class="tutorial-step">
-                        <div class="step-icon">🏆</div>
-                        <p>더 이상 블록을 놓을 수 없으면<br>게임 오버!</p>
+                        <div class="step-icon">🏪</div>
+                        <p>목적지에 도착하면<br>스테이지 클리어!</p>
                     </div>
                 </div>
                 <button id="tutorial-back-btn" class="btn btn-primary">돌아가기</button>
@@ -69,63 +66,79 @@
 
         <!-- Game Screen -->
         <div id="game-screen" class="screen">
-            <div class="game-header">
-                <div class="score-section">
-                    <div class="score-box">
-                        <span class="score-label">점수</span>
-                        <span id="current-score" class="score-value">0</span>
-                    </div>
-                    <div class="score-box best">
-                        <span class="score-label">최고</span>
-                        <span id="best-score" class="score-value">0</span>
+            <div class="game-hud">
+                <div class="hud-left">
+                    <div class="stage-display">
+                        <span id="stage-label">Stage 1</span>
+                        <span id="stage-name">우리 동네</span>
                     </div>
                 </div>
-                <div id="combo-display" class="combo-display hidden">
-                    <span id="combo-text">COMBO x2</span>
+                <div class="hud-center">
+                    <div class="breath-bar-container">
+                        <div class="breath-label">숨참기</div>
+                        <div class="breath-bar">
+                            <div id="breath-fill" class="breath-fill"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="hud-right">
+                    <div class="distance-display">
+                        <span id="distance-value">0m</span>
+                        <span class="distance-label">/ 100m</span>
+                    </div>
                 </div>
             </div>
 
-            <div class="game-board-container">
-                <canvas id="game-canvas"></canvas>
-                <div id="score-popup-container"></div>
+            <canvas id="game-canvas"></canvas>
+
+            <div id="mobile-controls" class="mobile-controls">
+                <button id="btn-up" class="ctrl-btn ctrl-up" aria-label="위로">
+                    <svg viewBox="0 0 24 24"><path d="M7 14l5-5 5 5z" fill="currentColor"/></svg>
+                </button>
+                <button id="btn-down" class="ctrl-btn ctrl-down" aria-label="아래로">
+                    <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z" fill="currentColor"/></svg>
+                </button>
             </div>
 
-            <div id="block-tray" class="block-tray">
-                <div class="tray-slot" data-slot="0"></div>
-                <div class="tray-slot" data-slot="1"></div>
-                <div class="tray-slot" data-slot="2"></div>
+            <div id="stage-clear-overlay" class="overlay hidden">
+                <div class="overlay-content clear-content">
+                    <h2>스테이지 클리어!</h2>
+                    <div class="clear-stars" id="clear-stars"></div>
+                    <p id="clear-message"></p>
+                    <button id="next-stage-btn" class="btn btn-primary">다음 스테이지</button>
+                </div>
             </div>
-        </div>
 
-        <!-- Game Over Screen -->
-        <div id="gameover-screen" class="screen">
-            <div class="gameover-content">
-                <h2>게임 오버</h2>
-                <div class="final-score">
-                    <span>최종 점수</span>
-                    <span id="final-score-value" class="big-score">0</span>
-                </div>
-                <div id="new-record" class="new-record hidden">
-                    <span>🎉 새로운 기록! 🎉</span>
-                </div>
-                <div class="gameover-stats">
-                    <div class="stat">
-                        <span class="stat-label">최고 콤보</span>
-                        <span id="max-combo" class="stat-value">0</span>
+            <div id="game-over-overlay" class="overlay hidden">
+                <div class="overlay-content gameover-content">
+                    <h2>으엑! 숨을 못 쉬겠어!</h2>
+                    <p id="gameover-distance"></p>
+                    <div class="gameover-stats">
+                        <div class="stat">
+                            <span class="stat-label">도달 거리</span>
+                            <span id="stat-distance" class="stat-value">0m</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">클리어 스테이지</span>
+                            <span id="stat-stages" class="stat-value">0</span>
+                        </div>
                     </div>
-                    <div class="stat">
-                        <span class="stat-label">제거한 줄</span>
-                        <span id="lines-cleared" class="stat-value">0</span>
-                    </div>
+                    <button id="retry-btn" class="btn btn-primary pulse">다시 하기</button>
+                    <button id="home-btn" class="btn btn-secondary">홈으로</button>
                 </div>
-                <button id="restart-btn" class="btn btn-primary pulse">다시 하기</button>
-                <button id="home-btn" class="btn btn-secondary">홈으로</button>
+            </div>
+
+            <div id="pause-overlay" class="overlay hidden">
+                <div class="overlay-content">
+                    <h2>일시정지</h2>
+                    <button id="resume-btn" class="btn btn-primary">계속하기</button>
+                    <button id="quit-btn" class="btn btn-secondary">그만하기</button>
+                </div>
             </div>
         </div>
     </div>
 
     <script src="js/game.js"></script>
-    <script src="js/ui.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

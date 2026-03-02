@@ -1,10 +1,9 @@
-const CACHE_NAME = 'blockblast-v1';
+const CACHE_NAME = 'smokerunner-v1';
 const ASSETS = [
     '/',
     '/index.html',
     '/css/style.css',
     '/js/game.js',
-    '/js/ui.js',
     '/js/app.js',
     '/manifest.json',
     '/assets/icon.svg'
