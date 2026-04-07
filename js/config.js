@@ -1,68 +1,121 @@
 const CONFIG = {
-  CANVAS: {
-    WIDTH: 390,
-    HEIGHT: 844
+  CANVAS: { WIDTH: 390, HEIGHT: 844 },
+
+  GRID: {
+    COLS: 7,
+    ROWS: 9,
+    CELL_SIZE: 48,
+    OFFSET_X: 12,
+    OFFSET_Y: 310,
+    PADDING: 3,
+    RADIUS: 10
   },
 
   COLORS: {
-    background: '#F0E6FF',
-    backgroundTop: '#F8F2FF',
+    bgTop: '#F0FFF0',
+    bgBottom: '#E8F8F5',
+    cellBg: '#FFFFFF',
+    cellBorder: '#E8E0D8',
     text: '#5C4033',
     textLight: '#8B7355',
-    accent: '#FFD700',
-    heart: '#FF6B8A',
-    heartEmpty: '#D4C5B9',
     white: '#FFFFFF',
-    overlay: 'rgba(0, 0, 0, 0.4)',
+    accent: '#FFD700',
+    star: '#FFD700',
+    energyBar: '#7ED6A8',
+    energyBg: '#E0E0E0',
+    overlay: 'rgba(0,0,0,0.45)',
+    heart: '#FF6B8A',
 
-    mochi: [
-      '#FFB8D0', // sakura pink
-      '#B8E6C8', // matcha green
-      '#FFE4A0', // custard yellow
-      '#A8D8F0', // sky blue
-      '#D4B8FF', // taro purple
-      '#FFD1A9', // peach orange
-    ],
-
-    golden: '#FFD700',
-    goldenGlow: '#FFF4CC'
+    chainColors: {
+      flower: ['#FFE0EB', '#FFB8D0', '#FF9EC0', '#FF7EB0', '#FF5EA0', '#FF3E90', '#FF1E80'],
+      dessert: ['#FFF3D0', '#FFE4A0', '#FFD070', '#FFC040', '#FFB020', '#FF9000', '#FF7000'],
+      animal: ['#E0F0FF', '#B8D8F0', '#90C8E8', '#68B8E0', '#40A0D8', '#2888D0', '#1070C0']
+    }
   },
 
-  MOCHI: {
-    minRadius: 28,
-    maxRadius: 42,
-    minSpeed: 55,
-    maxSpeed: 85,
-    wobbleAmplitude: 3,
-    wobbleSpeed: 2.5,
-    hitRadiusMultiplier: 1.15,
-    goldenChance: 0.05,
-    normalScore: 10,
-    goldenScore: 50
+  CHAINS: {
+    flower: {
+      name: 'Flower',
+      icon: '🌸',
+      items: [
+        { emoji: '🌰', name: '씨앗' },
+        { emoji: '🌱', name: '새싹' },
+        { emoji: '🌷', name: '꽃봉오리' },
+        { emoji: '🌸', name: '꽃' },
+        { emoji: '💐', name: '꽃다발' },
+        { emoji: '🌺', name: '화환' },
+        { emoji: '🌳', name: '정원' }
+      ]
+    },
+    dessert: {
+      name: 'Dessert',
+      icon: '🍰',
+      items: [
+        { emoji: '🍬', name: '사탕' },
+        { emoji: '🍪', name: '쿠키' },
+        { emoji: '🍩', name: '도넛' },
+        { emoji: '🎂', name: '케이크' },
+        { emoji: '🧁', name: '컵케이크' },
+        { emoji: '🏰', name: '디저트타워' },
+        { emoji: '🌈', name: '과자의성' }
+      ]
+    },
+    animal: {
+      name: 'Animal',
+      icon: '🐾',
+      items: [
+        { emoji: '🥚', name: '알' },
+        { emoji: '🐣', name: '병아리' },
+        { emoji: '🐔', name: '닭' },
+        { emoji: '🐱', name: '고양이' },
+        { emoji: '🐶', name: '강아지' },
+        { emoji: '🦄', name: '유니콘' },
+        { emoji: '🐉', name: '드래곤' }
+      ]
+    }
   },
 
-  GAME: {
-    initialLives: 3,
-    comboTimeout: 800,
-    maxCombo: 10,
-    feverDuration: 3000,
-    feverScoreMultiplier: 2,
-    feverThresholds: [500, 1500, 3000, 5000, 8000]
+  CHAIN_ORDER: ['flower', 'dessert', 'animal'],
+
+  ENERGY: {
+    max: 20,
+    rechargeTime: 30000,
+    costPerSpawn: 1
   },
 
-  DIFFICULTY: {
-    initialSpawnInterval: 1000,
-    spawnIntervalDecrease: 12,
-    minSpawnInterval: 220,
-    speedIncreasePerSecond: 1.8,
-    maxSpeedMultiplier: 3.0
+  GENERATORS: {
+    y: 260,
+    radius: 24,
+    gap: 90
+  },
+
+  ORDERS: {
+    maxActive: 2,
+    starRewards: [1, 1, 2, 2, 3, 3, 5],
+    difficultyTable: [
+      { maxLevel: 2, maxCount: 2 },
+      { maxLevel: 2, maxCount: 3 },
+      { maxLevel: 3, maxCount: 2 },
+      { maxLevel: 3, maxCount: 3 },
+      { maxLevel: 4, maxCount: 2 },
+      { maxLevel: 4, maxCount: 3 },
+      { maxLevel: 5, maxCount: 2 },
+      { maxLevel: 5, maxCount: 3 },
+      { maxLevel: 6, maxCount: 2 },
+      { maxLevel: 6, maxCount: 3 }
+    ]
   },
 
   PARTICLES: {
-    popCount: 8,
-    popSpeed: 120,
-    popLife: 0.6,
-    sparkleInterval: 300,
-    maxParticles: 200
+    mergeCount: 10,
+    spawnCount: 5,
+    deliverCount: 12,
+    maxParticles: 150
+  },
+
+  ANIM: {
+    mergeDuration: 0.25,
+    spawnDuration: 0.3,
+    moveDuration: 0.15
   }
 };

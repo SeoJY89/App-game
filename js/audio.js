@@ -14,55 +14,52 @@ class AudioManager {
     }
   }
 
-  _playTone(frequency, duration, type = 'sine', volume = 0.15) {
+  _playTone(freq, duration, type = 'sine', vol = 0.12, delay = 0) {
     if (!this.ctx) return;
+    const t = this.ctx.currentTime + delay;
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
     osc.type = type;
-    osc.frequency.setValueAtTime(frequency, this.ctx.currentTime);
-    gain.gain.setValueAtTime(volume, this.ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+    osc.frequency.setValueAtTime(freq, t);
+    gain.gain.setValueAtTime(vol, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
     osc.connect(gain);
     gain.connect(this.ctx.destination);
-    osc.start(this.ctx.currentTime);
-    osc.stop(this.ctx.currentTime + duration);
+    osc.start(t);
+    osc.stop(t + duration);
   }
 
-  playPop(pitch = 0) {
-    const baseFreq = 600 + pitch * 80;
-    this._playTone(baseFreq, 0.12, 'sine', 0.12);
-    setTimeout(() => this._playTone(baseFreq * 1.5, 0.08, 'sine', 0.06), 30);
+  playSpawn() {
+    this._playTone(500, 0.1, 'sine', 0.08);
+    this._playTone(700, 0.1, 'sine', 0.06, 0.05);
   }
 
-  playCombo(level) {
-    const baseFreq = 500 + level * 60;
-    for (let i = 0; i < Math.min(level, 4); i++) {
-      setTimeout(() => this._playTone(baseFreq + i * 100, 0.1, 'sine', 0.1), i * 50);
+  playMerge(level) {
+    const base = 400 + level * 80;
+    this._playTone(base, 0.12, 'sine', 0.1);
+    this._playTone(base * 1.25, 0.12, 'sine', 0.08, 0.06);
+    this._playTone(base * 1.5, 0.15, 'sine', 0.1, 0.12);
+    if (level >= 5) {
+      this._playTone(base * 2, 0.2, 'sine', 0.06, 0.18);
     }
   }
 
-  playMiss() {
-    this._playTone(250, 0.2, 'triangle', 0.1);
-    setTimeout(() => this._playTone(180, 0.3, 'triangle', 0.08), 100);
+  playDeliver() {
+    const notes = [600, 750, 900, 1100];
+    notes.forEach((f, i) => this._playTone(f, 0.12, 'sine', 0.1, i * 0.06));
   }
 
-  playGameOver() {
-    const notes = [400, 350, 300, 200];
-    notes.forEach((freq, i) => {
-      setTimeout(() => this._playTone(freq, 0.25, 'sine', 0.1), i * 150);
-    });
+  playDrop() {
+    this._playTone(300, 0.08, 'triangle', 0.06);
   }
 
-  playFever() {
-    const notes = [500, 600, 700, 900];
-    notes.forEach((freq, i) => {
-      setTimeout(() => this._playTone(freq, 0.15, 'sine', 0.12), i * 80);
-    });
+  playError() {
+    this._playTone(200, 0.15, 'triangle', 0.08);
   }
 
   playStart() {
-    this._playTone(400, 0.15, 'sine', 0.1);
-    setTimeout(() => this._playTone(600, 0.15, 'sine', 0.1), 120);
-    setTimeout(() => this._playTone(800, 0.2, 'sine', 0.12), 240);
+    this._playTone(400, 0.12, 'sine', 0.08);
+    this._playTone(600, 0.12, 'sine', 0.08, 0.1);
+    this._playTone(800, 0.18, 'sine', 0.1, 0.2);
   }
 }

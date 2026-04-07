@@ -1,4 +1,4 @@
-const State = { MENU: 0, PLAYING: 1, GAME_OVER: 2 };
+const State = { MENU: 0, TUTORIAL: 1, PLAYING: 2, COLLECTION: 3 };
 
 class Game {
   constructor() {
@@ -6,56 +6,44 @@ class Game {
     this.ctx = this.canvas.getContext('2d');
     this.audio = new AudioManager();
     this.particles = new ParticleSystem();
+    this.board = new Board(this.audio, this.particles);
+    this.orders = new OrderManager();
     this.ui = new UI();
 
     this.state = State.MENU;
     this.scale = 1;
     this.lastTime = 0;
-    this.playAgainBtn = null;
+    this.saveTimer = 0;
+    this.sparkleTimer = 0;
+    this.uiRects = {};
 
-    this._resetGame();
     this._setupCanvas();
     this._setupEvents();
 
-    // load high score
-    this.highScore = parseInt(localStorage.getItem('mochiPopHighScore')) || 0;
+    // try load saved game
+    const saved = SaveManager.load();
+    if (saved) {
+      this.board.deserialize(saved.board);
+      this.orders.deserialize(saved.orders);
+    }
 
-    // start loop
     document.fonts.ready.then(() => {
       requestAnimationFrame((t) => this._loop(t));
     });
   }
 
-  _resetGame() {
-    this.score = 0;
-    this.lives = CONFIG.GAME.initialLives;
-    this.combo = 0;
-    this.lastPopTime = 0;
-    this.mochis = [];
-    this.spawnTimer = 0;
-    this.gameTime = 0;
-    this.currentSpawnInterval = CONFIG.DIFFICULTY.initialSpawnInterval;
-    this.speedMultiplier = 1;
-    this.feverActive = false;
-    this.feverTimer = 0;
-    this.feverTriggered = new Set();
-    this.isNewBest = false;
-    this.sparkleTimer = 0;
-  }
-
   _setupCanvas() {
     const resize = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      const targetRatio = CONFIG.CANVAS.WIDTH / CONFIG.CANVAS.HEIGHT;
-      const screenRatio = w / h;
-
-      if (screenRatio > targetRatio) {
-        this.canvas.height = h;
-        this.canvas.width = h * targetRatio;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const target = CONFIG.CANVAS.WIDTH / CONFIG.CANVAS.HEIGHT;
+      const screen = vw / vh;
+      if (screen > target) {
+        this.canvas.height = vh;
+        this.canvas.width = vh * target;
       } else {
-        this.canvas.width = w;
-        this.canvas.height = w / targetRatio;
+        this.canvas.width = vw;
+        this.canvas.height = vw / target;
       }
       this.scale = this.canvas.width / CONFIG.CANVAS.WIDTH;
     };
@@ -64,162 +52,153 @@ class Game {
   }
 
   _setupEvents() {
-    const handler = (e) => {
-      e.preventDefault();
-      this.audio.init();
-
+    const getPos = (e) => {
       const rect = this.canvas.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / this.scale;
-      const y = (e.clientY - rect.top) / this.scale;
-      this._handleInput(x, y);
+      return {
+        x: (e.clientX - rect.left) / this.scale,
+        y: (e.clientY - rect.top) / this.scale
+      };
     };
 
-    this.canvas.addEventListener('pointerdown', handler, { passive: false });
+    this.canvas.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      this.audio.init();
+      const pos = getPos(e);
+      this._handleDown(pos.x, pos.y);
+    }, { passive: false });
+
+    this.canvas.addEventListener('pointermove', (e) => {
+      e.preventDefault();
+      const pos = getPos(e);
+      this._handleMove(pos.x, pos.y);
+    }, { passive: false });
+
+    this.canvas.addEventListener('pointerup', (e) => {
+      e.preventDefault();
+      const pos = getPos(e);
+      this._handleUp(pos.x, pos.y);
+    }, { passive: false });
+
+    this.canvas.addEventListener('pointercancel', (e) => {
+      if (this.board.dragging) {
+        this.board.dragging.targetScale = 1;
+        this.board.dragging.setGridPos(this.board.dragStartGX, this.board.dragStartGY);
+        this.board.dragging = null;
+      }
+    });
   }
 
-  _handleInput(x, y) {
+  _handleDown(x, y) {
     if (this.state === State.MENU) {
-      this.state = State.PLAYING;
-      this._resetGame();
+      this.state = SaveManager.hasSave() ? State.PLAYING : State.TUTORIAL;
+      if (this.state === State.TUTORIAL) {
+        this.ui.tutorialStep = 0;
+      }
+      if (!SaveManager.hasSave()) {
+        this.orders.init();
+      }
       this.audio.playStart();
-      this.ui.menuMochi = null;
       return;
     }
 
-    if (this.state === State.GAME_OVER) {
-      if (this.playAgainBtn) {
-        const b = this.playAgainBtn;
-        if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
-          this.state = State.MENU;
-        }
+    if (this.state === State.TUTORIAL) {
+      this.ui.tutorialStep++;
+      if (this.ui.tutorialStep >= 3) {
+        this.state = State.PLAYING;
       }
       return;
     }
 
-    // playing - check mochi hits (reverse order for topmost first)
-    for (let i = this.mochis.length - 1; i >= 0; i--) {
-      const m = this.mochis[i];
-      if (m.popping) continue;
-
-      if (m.hitTest(x, y)) {
-        const baseScore = m.pop();
-        const now = Date.now();
-
-        // combo logic
-        if (now - this.lastPopTime < CONFIG.GAME.comboTimeout) {
-          this.combo = Math.min(this.combo + 1, CONFIG.GAME.maxCombo);
-        } else {
-          this.combo = 1;
-        }
-        this.lastPopTime = now;
-
-        // calculate score
-        let points = baseScore * this.combo;
-        if (this.feverActive) points *= CONFIG.GAME.feverScoreMultiplier;
-        this.score += points;
-
-        // effects
-        const px = m.x + m.wobbleX;
-        const py = m.y;
-        this.particles.emitPop(px, py, m.color);
-        this.audio.playPop(m.colorIndex >= 0 ? m.colorIndex : 3);
-
-        if (this.combo >= 3) {
-          this.particles.emitCombo(px, py, this.combo);
-          this.ui.addComboText(px, py - 30, this.combo);
-          this.audio.playCombo(this.combo);
-        }
-
-        // check fever thresholds
-        for (const threshold of CONFIG.GAME.feverThresholds) {
-          if (this.score >= threshold && !this.feverTriggered.has(threshold)) {
-            this.feverTriggered.add(threshold);
-            this.feverActive = true;
-            this.feverTimer = CONFIG.GAME.feverDuration;
-            this.audio.playFever();
-          }
-        }
-
-        // update high score
-        if (this.score > this.highScore) {
-          this.highScore = this.score;
-          this.isNewBest = true;
-        }
-
-        break; // only pop one per tap
+    if (this.state === State.COLLECTION) {
+      const btn = this.uiRects.closeBtn;
+      if (btn && x >= btn.x && x <= btn.x + btn.w && y >= btn.y && y <= btn.y + btn.h) {
+        this.state = State.PLAYING;
       }
+      return;
+    }
+
+    // PLAYING state
+    // check collection button
+    const colBtn = this.uiRects.collectionBtn;
+    if (colBtn && x >= colBtn.x && x <= colBtn.x + colBtn.w && y >= colBtn.y && y <= colBtn.y + colBtn.h) {
+      this.state = State.COLLECTION;
+      return;
+    }
+
+    // check if tapping an item on the board (for delivery)
+    const gp = this.board.getGridPos(x, y);
+    if (gp) {
+      const item = this.board.grid[gp.row][gp.col];
+      if (item && !item.removing) {
+        // try deliver first on single tap (will be checked on up as well)
+        this._tapTarget = item;
+      }
+    }
+
+    // delegate to board (generators + drag start)
+    const result = this.board.handlePointerDown(x, y);
+    if (result === 'generator') {
+      this.ui.hintTimer = 0; // reset hint on action
     }
   }
 
-  _spawnMochi() {
-    this.mochis.push(new Mochi(CONFIG.CANVAS.WIDTH, CONFIG.CANVAS.HEIGHT, this.speedMultiplier));
+  _handleMove(x, y) {
+    if (this.state !== State.PLAYING) return;
+    this.board.handlePointerMove(x, y);
+    if (this.board.dragging) {
+      this._tapTarget = null; // moved, not a tap
+    }
+  }
+
+  _handleUp(x, y) {
+    if (this.state !== State.PLAYING) return;
+
+    // if we were dragging, handle drop
+    if (this.board.dragging) {
+      const result = this.board.handlePointerUp(x, y);
+      this.ui.hintTimer = 0;
+      return;
+    }
+
+    // tap delivery: if user tapped (didn't drag) on an item
+    if (this._tapTarget) {
+      const item = this._tapTarget;
+      this._tapTarget = null;
+
+      const order = this.orders.tryDeliver(item);
+      if (order) {
+        const pos = this.board.getScreenPos(item.gridX, item.gridY);
+        this.particles.emitSpawn(pos.x, pos.y);
+        this.audio.playSpawn();
+        this.board.removeItem(item);
+        this.ui.hintTimer = 0;
+      }
+    }
   }
 
   _update(dt) {
     this.ui.update(dt);
     this.particles.update(dt);
 
-    // background sparkles (all states)
+    // background sparkle
     this.sparkleTimer += dt * 1000;
-    if (this.sparkleTimer >= CONFIG.PARTICLES.sparkleInterval) {
-      this.sparkleTimer -= CONFIG.PARTICLES.sparkleInterval;
+    if (this.sparkleTimer > 400) {
+      this.sparkleTimer -= 400;
       this.particles.emitSparkle(CONFIG.CANVAS.WIDTH, CONFIG.CANVAS.HEIGHT);
     }
 
-    if (this.state !== State.PLAYING) return;
+    if (this.state === State.PLAYING) {
+      this.board.update(dt);
+      this.orders.update(dt);
+      this.orders.collectCompleted(this.particles, this.audio);
 
-    this.gameTime += dt;
-
-    // difficulty increase
-    this.currentSpawnInterval = Math.max(
-      CONFIG.DIFFICULTY.minSpawnInterval,
-      CONFIG.DIFFICULTY.initialSpawnInterval - this.gameTime * CONFIG.DIFFICULTY.spawnIntervalDecrease
-    );
-    this.speedMultiplier = Math.min(
-      CONFIG.DIFFICULTY.maxSpeedMultiplier,
-      1 + this.gameTime * CONFIG.DIFFICULTY.speedIncreasePerSecond / 60
-    );
-
-    // fever timer
-    if (this.feverActive) {
-      this.feverTimer -= dt * 1000;
-      if (this.feverTimer <= 0) {
-        this.feverActive = false;
-        this.feverTimer = 0;
+      // auto save
+      this.saveTimer += dt;
+      if (this.saveTimer > 30) {
+        this.saveTimer = 0;
+        SaveManager.save(this.board, this.orders);
       }
     }
-
-    // spawn mochi
-    this.spawnTimer += dt * 1000;
-    const spawnInterval = this.feverActive ? this.currentSpawnInterval * 0.5 : this.currentSpawnInterval;
-    if (this.spawnTimer >= spawnInterval) {
-      this.spawnTimer -= spawnInterval;
-      this._spawnMochi();
-    }
-
-    // update mochis
-    for (let i = this.mochis.length - 1; i >= 0; i--) {
-      const m = this.mochis[i];
-      m.update(dt);
-
-      if (!m.alive) {
-        if (m.escaped) {
-          this.lives--;
-          this.audio.playMiss();
-          // screen shake would go here
-          if (this.lives <= 0) {
-            this._gameOver();
-          }
-        }
-        this.mochis.splice(i, 1);
-      }
-    }
-  }
-
-  _gameOver() {
-    this.state = State.GAME_OVER;
-    this.audio.playGameOver();
-    localStorage.setItem('mochiPopHighScore', this.highScore.toString());
   }
 
   _draw() {
@@ -230,10 +209,10 @@ class Game {
     ctx.save();
     ctx.scale(this.scale, this.scale);
 
-    // background gradient
+    // background
     const grad = ctx.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0, CONFIG.COLORS.backgroundTop);
-    grad.addColorStop(1, CONFIG.COLORS.background);
+    grad.addColorStop(0, CONFIG.COLORS.bgTop);
+    grad.addColorStop(1, CONFIG.COLORS.bgBottom);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
 
@@ -241,27 +220,40 @@ class Game {
     this.particles.draw(ctx);
 
     if (this.state === State.MENU) {
-      this.ui.drawMenu(ctx, w, h, this.highScore);
-    }
+      this.ui.drawMenu(ctx, w, h);
+    } else {
+      // top bar
+      this.uiRects = this.ui.drawTopBar(ctx, this.orders.stars, this.board.energy, CONFIG.ENERGY.max);
 
-    if (this.state === State.PLAYING || this.state === State.GAME_OVER) {
-      // draw mochis
-      for (const m of this.mochis) {
-        m.draw(ctx);
+      // orders
+      this.orders.draw(ctx);
+
+      // board
+      this.board.draw(ctx);
+
+      // hint
+      const g = CONFIG.GRID;
+      let hasItems = false;
+      for (let r = 0; r < g.ROWS && !hasItems; r++)
+        for (let c = 0; c < g.COLS && !hasItems; c++)
+          if (this.board.grid[r][c]) hasItems = true;
+
+      if (hasItems) {
+        this.ui.drawHint(ctx, '💡 같은 아이템끼리 합쳐보세요!', w);
+      } else {
+        this.ui.drawHint(ctx, '👆 위 버튼을 탭해서 아이템을 만드세요!', w);
       }
 
-      // UI
-      this.ui.drawScore(ctx, this.score, this.highScore, w);
-      this.ui.drawLives(ctx, this.lives);
-      this.ui.drawComboTexts(ctx);
-
-      if (this.feverActive) {
-        this.ui.drawFever(ctx, this.feverTimer, w, h);
+      // tutorial overlay
+      if (this.state === State.TUTORIAL) {
+        this.ui.drawTutorial(ctx, this.ui.tutorialStep, w, h);
       }
-    }
 
-    if (this.state === State.GAME_OVER) {
-      this.playAgainBtn = this.ui.drawGameOver(ctx, w, h, this.score, this.highScore, this.isNewBest);
+      // collection overlay
+      if (this.state === State.COLLECTION) {
+        const rects = this.ui.drawCollection(ctx, this.board.discovered, w, h);
+        if (rects) Object.assign(this.uiRects, rects);
+      }
     }
 
     ctx.restore();
@@ -270,15 +262,12 @@ class Game {
   _loop(timestamp) {
     const dt = Math.min((timestamp - this.lastTime) / 1000, 0.05);
     this.lastTime = timestamp;
-
     this._update(dt);
     this._draw();
-
     requestAnimationFrame((t) => this._loop(t));
   }
 }
 
-// Start game when DOM is ready
 window.addEventListener('DOMContentLoaded', () => {
   new Game();
 });

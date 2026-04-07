@@ -1,264 +1,258 @@
 class UI {
   constructor() {
-    this.comboTexts = [];
-    this.feverFlash = 0;
     this.titleBounce = 0;
-    this.menuMochi = null;
+    this.showCollection = false;
+    this.tutorialStep = 0;
+    this.hintTimer = 0;
+    this.hintVisible = false;
   }
 
   update(dt) {
     this.titleBounce += dt * 2;
-    this.feverFlash += dt * 8;
-
-    for (let i = this.comboTexts.length - 1; i >= 0; i--) {
-      const ct = this.comboTexts[i];
-      ct.timer += dt;
-      ct.y -= 40 * dt;
-      if (ct.timer > 0.8) {
-        this.comboTexts.splice(i, 1);
-      }
-    }
+    this.hintTimer += dt;
   }
 
-  addComboText(x, y, combo) {
-    this.comboTexts.push({
-      x, y, combo,
-      timer: 0
-    });
-  }
+  drawTopBar(ctx, stars, energy, maxEnergy) {
+    const w = CONFIG.CANVAS.WIDTH;
 
-  drawScore(ctx, score, highScore, w) {
-    // score bubble
-    const bubbleW = 160;
-    const bubbleH = 50;
-    const bubbleX = w / 2 - bubbleW / 2;
-    const bubbleY = 15;
-
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    this._roundRect(ctx, bubbleX, bubbleY, bubbleW, bubbleH, 25);
+    // background bar
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    this._roundRect(ctx, 10, 10, w - 20, 44, 14);
     ctx.fill();
 
+    // stars
+    ctx.font = '18px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('⭐', 22, 32);
+    ctx.font = 'bold 18px Nunito, sans-serif';
     ctx.fillStyle = CONFIG.COLORS.text;
-    ctx.font = 'bold 26px Nunito, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(score.toLocaleString(), w / 2, bubbleY + bubbleH / 2);
+    ctx.fillText(stars.toLocaleString(), 44, 32);
 
-    // high score small text
-    ctx.fillStyle = CONFIG.COLORS.textLight;
-    ctx.font = '12px Nunito, sans-serif';
-    ctx.fillText('BEST: ' + highScore.toLocaleString(), w / 2, bubbleY + bubbleH + 10);
-  }
+    // energy bar
+    const barX = 140;
+    const barY = 24;
+    const barW = 130;
+    const barH = 14;
 
-  drawLives(ctx, lives) {
-    const startX = 20;
-    const y = 30;
-    const size = 14;
-    const gap = 34;
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('⚡', barX - 20, 32);
 
-    for (let i = 0; i < CONFIG.GAME.initialLives; i++) {
-      const x = startX + i * gap;
-      ctx.fillStyle = i < lives ? CONFIG.COLORS.heart : CONFIG.COLORS.heartEmpty;
-      this._drawHeart(ctx, x, y, size);
+    ctx.fillStyle = CONFIG.COLORS.energyBg;
+    this._roundRect(ctx, barX, barY, barW, barH, 7);
+    ctx.fill();
+
+    const ratio = energy / maxEnergy;
+    ctx.fillStyle = CONFIG.COLORS.energyBar;
+    if (barW * ratio > 1) {
+      this._roundRect(ctx, barX, barY, barW * ratio, barH, 7);
+      ctx.fill();
     }
-  }
 
-  _drawHeart(ctx, x, y, size) {
-    ctx.beginPath();
-    ctx.moveTo(x, y + size * 0.3);
-    ctx.bezierCurveTo(x, y, x - size, y, x - size, y + size * 0.3);
-    ctx.bezierCurveTo(x - size, y + size * 0.7, x, y + size, x, y + size * 1.2);
-    ctx.bezierCurveTo(x, y + size, x + size, y + size * 0.7, x + size, y + size * 0.3);
-    ctx.bezierCurveTo(x + size, y, x, y, x, y + size * 0.3);
-    ctx.fill();
-  }
-
-  drawComboTexts(ctx) {
-    for (const ct of this.comboTexts) {
-      const alpha = Math.max(0, 1 - ct.timer / 0.8);
-      const scale = 1 + ct.timer * 0.5;
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.translate(ct.x, ct.y);
-      ctx.scale(scale, scale);
-      ctx.font = 'bold 28px Nunito, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.strokeStyle = CONFIG.COLORS.white;
-      ctx.lineWidth = 4;
-      ctx.strokeText(`x${ct.combo}!`, 0, 0);
-      ctx.fillStyle = CONFIG.COLORS.accent;
-      ctx.fillText(`x${ct.combo}!`, 0, 0);
-      ctx.restore();
-    }
-  }
-
-  drawFever(ctx, timer, w, h) {
-    const alpha = 0.7 + Math.sin(this.feverFlash) * 0.3;
-    ctx.save();
-    ctx.globalAlpha = alpha;
-
-    // fever background glow
-    const gradient = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w);
-    gradient.addColorStop(0, 'rgba(255, 215, 0, 0.15)');
-    gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, w, h);
-
-    // fever text
-    const scale = 1.2 + Math.sin(this.feverFlash * 1.5) * 0.1;
-    ctx.translate(w / 2, 110);
-    ctx.scale(scale, scale);
-    ctx.font = 'bold 32px Nunito, sans-serif';
+    ctx.font = 'bold 11px Nunito, sans-serif';
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.strokeStyle = CONFIG.COLORS.white;
-    ctx.lineWidth = 5;
-    ctx.strokeText('FEVER TIME!', 0, 0);
+    ctx.fillStyle = CONFIG.COLORS.text;
+    ctx.fillText(`${energy}/${maxEnergy}`, barX + barW / 2, barY + barH / 2 + 1);
 
-    const hue = (Date.now() / 10) % 360;
-    ctx.fillStyle = `hsl(${hue}, 80%, 55%)`;
-    ctx.fillText('FEVER TIME!', 0, 0);
+    // collection button
+    const btnX = w - 50;
+    ctx.font = '22px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('📖', btnX, 32);
 
-    // timer bar
-    ctx.restore();
-    const barW = 120;
-    const barH = 6;
-    const barX = w / 2 - barW / 2;
-    const barY = 132;
-    const progress = timer / CONFIG.GAME.feverDuration;
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    this._roundRect(ctx, barX, barY, barW, barH, 3);
-    ctx.fill();
-    ctx.fillStyle = CONFIG.COLORS.accent;
-    this._roundRect(ctx, barX, barY, barW * progress, barH, 3);
-    ctx.fill();
+    return { collectionBtn: { x: btnX - 18, y: 14, w: 36, h: 36 } };
   }
 
-  drawMenu(ctx, w, h, highScore) {
+  drawMenu(ctx, w, h) {
+    const bounceY = Math.sin(this.titleBounce) * 6;
+
     // title
-    const bounceY = Math.sin(this.titleBounce) * 8;
     ctx.save();
-    ctx.translate(w / 2, h * 0.25 + bounceY);
-
-    ctx.font = 'bold 52px Nunito, sans-serif';
+    ctx.translate(w / 2, h * 0.28 + bounceY);
+    ctx.font = 'bold 46px Nunito, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.strokeStyle = CONFIG.COLORS.white;
     ctx.lineWidth = 6;
-    ctx.strokeText('Mochi Pop!', 0, 0);
-    ctx.fillStyle = CONFIG.COLORS.mochi[0];
-    ctx.fillText('Mochi Pop!', 0, 0);
+    ctx.strokeText('Mochi Merge!', 0, 0);
+    ctx.fillStyle = '#FF7EB0';
+    ctx.fillText('Mochi Merge!', 0, 0);
 
-    // subtitle
-    ctx.font = '18px Nunito, sans-serif';
+    ctx.font = '16px Nunito, sans-serif';
     ctx.fillStyle = CONFIG.COLORS.textLight;
-    ctx.fillText('모찌 팝!', 0, 40);
-
+    ctx.fillText('모찌 머지!', 0, 35);
     ctx.restore();
 
-    // draw sample mochi
-    if (!this.menuMochi) {
-      this.menuMochi = new Mochi(w, h);
-      this.menuMochi.x = w / 2;
-      this.menuMochi.y = h * 0.48;
-      this.menuMochi.radius = 50;
-      this.menuMochi.speed = 0;
-      this.menuMochi.eyeStyle = 1; // happy face
+    // sample items
+    const emojis = ['🌸', '🍰', '🐱', '💐', '🍩', '🦄'];
+    const positions = [
+      { x: w * 0.2, y: h * 0.45 }, { x: w * 0.5, y: h * 0.42 }, { x: w * 0.8, y: h * 0.45 },
+      { x: w * 0.3, y: h * 0.52 }, { x: w * 0.6, y: h * 0.52 }, { x: w * 0.7, y: h * 0.48 }
+    ];
+    ctx.font = '36px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i < emojis.length; i++) {
+      const p = positions[i];
+      const bob = Math.sin(this.titleBounce + i * 0.8) * 5;
+      ctx.fillText(emojis[i], p.x, p.y + bob);
     }
-    this.menuMochi.wobblePhase += 0.02;
-    this.menuMochi.squish = 1 + Math.sin(this.menuMochi.wobblePhase * 1.3) * 0.05;
-    this.menuMochi.wobbleX = Math.sin(this.menuMochi.wobblePhase) * 5;
-    this.menuMochi.rotation = Math.sin(this.menuMochi.wobblePhase * 0.7) * 0.08;
-    this.menuMochi.draw(ctx);
 
     // tap to start
     const tapAlpha = 0.5 + Math.sin(Date.now() / 400) * 0.5;
     ctx.globalAlpha = tapAlpha;
     ctx.font = '22px Nunito, sans-serif';
-    ctx.textAlign = 'center';
     ctx.fillStyle = CONFIG.COLORS.text;
-    ctx.fillText('Tap to Start!', w / 2, h * 0.68);
+    ctx.fillText('Tap to Start!', w / 2, h * 0.65);
     ctx.globalAlpha = 1;
-
-    // high score
-    if (highScore > 0) {
-      ctx.font = '16px Nunito, sans-serif';
-      ctx.fillStyle = CONFIG.COLORS.textLight;
-      ctx.fillText('Best: ' + highScore.toLocaleString(), w / 2, h * 0.75);
-    }
 
     // instructions
     ctx.font = '14px Nunito, sans-serif';
     ctx.fillStyle = CONFIG.COLORS.textLight;
-    ctx.textAlign = 'center';
-    ctx.fillText('떠오르는 모찌를 탭해서 터뜨리세요!', w / 2, h * 0.85);
-    ctx.fillText('놓치면 하트를 잃어요 💔', w / 2, h * 0.89);
+    ctx.fillText('같은 아이템을 합쳐서 새로운 아이템을 만드세요!', w / 2, h * 0.82);
+    ctx.fillText('주문을 완성하면 별을 받아요 ⭐', w / 2, h * 0.86);
   }
 
-  drawGameOver(ctx, w, h, score, highScore, isNewBest) {
-    // overlay
+  drawTutorial(ctx, step, w, h) {
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(0, 0, w, h);
+
+    const msgs = [
+      { emoji: '👆', text: '제너레이터를 탭해서\n아이템을 만드세요!', y: CONFIG.GENERATORS.y - 60 },
+      { emoji: '👉', text: '같은 아이템 위에\n드래그해서 합치세요!', y: CONFIG.GRID.OFFSET_Y + 60 },
+      { emoji: '📦', text: '주문에 맞는 아이템을 만들어\n탭하면 납품됩니다!', y: 140 }
+    ];
+
+    if (step >= msgs.length) return;
+    const msg = msgs[step];
+
+    // bubble
+    const bw = 260;
+    const bh = 90;
+    const bx = w / 2 - bw / 2;
+    const by = msg.y;
+
+    ctx.fillStyle = CONFIG.COLORS.white;
+    ctx.shadowColor = 'rgba(0,0,0,0.15)';
+    ctx.shadowBlur = 10;
+    this._roundRect(ctx, bx, by, bw, bh, 16);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.font = '30px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(msg.emoji, bx + 40, by + bh / 2);
+
+    ctx.font = '14px Nunito, sans-serif';
+    ctx.fillStyle = CONFIG.COLORS.text;
+    ctx.textAlign = 'left';
+    const lines = msg.text.split('\n');
+    lines.forEach((line, i) => {
+      ctx.fillText(line, bx + 65, by + bh / 2 - 8 + i * 20);
+    });
+
+    // tap to continue
+    const alpha = 0.5 + Math.sin(Date.now() / 300) * 0.5;
+    ctx.globalAlpha = alpha;
+    ctx.font = '12px Nunito, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = CONFIG.COLORS.textLight;
+    ctx.fillText('탭하여 계속', w / 2, by + bh + 20);
+    ctx.globalAlpha = 1;
+  }
+
+  drawCollection(ctx, discovered, w, h) {
     ctx.fillStyle = CONFIG.COLORS.overlay;
     ctx.fillRect(0, 0, w, h);
 
     // panel
-    const panelW = 280;
-    const panelH = 320;
-    const panelX = w / 2 - panelW / 2;
-    const panelY = h / 2 - panelH / 2 - 20;
+    const pw = 340;
+    const ph = 560;
+    const px = w / 2 - pw / 2;
+    const py = h / 2 - ph / 2;
 
     ctx.fillStyle = CONFIG.COLORS.white;
-    this._roundRect(ctx, panelX, panelY, panelW, panelH, 24);
+    ctx.shadowColor = 'rgba(0,0,0,0.2)';
+    ctx.shadowBlur = 15;
+    this._roundRect(ctx, px, py, pw, ph, 20);
     ctx.fill();
+    ctx.shadowBlur = 0;
 
-    // game over text
-    ctx.font = 'bold 32px Nunito, sans-serif';
+    // title
+    ctx.font = 'bold 24px Nunito, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillStyle = CONFIG.COLORS.text;
-    ctx.fillText('Game Over', w / 2, panelY + 50);
+    ctx.fillText('📖 도감', w / 2, py + 35);
 
-    // sad mochi
-    ctx.font = '48px sans-serif';
-    ctx.fillText('🥺', w / 2, panelY + 105);
-
-    // score
-    ctx.font = '16px Nunito, sans-serif';
+    // count
+    ctx.font = '13px Nunito, sans-serif';
     ctx.fillStyle = CONFIG.COLORS.textLight;
-    ctx.fillText('SCORE', w / 2, panelY + 150);
+    ctx.fillText(`${discovered.size} / 21 발견`, w / 2, py + 55);
 
-    ctx.font = 'bold 40px Nunito, sans-serif';
-    ctx.fillStyle = CONFIG.COLORS.text;
-    ctx.fillText(score.toLocaleString(), w / 2, panelY + 185);
+    // items grid
+    let iy = py + 80;
+    for (const chainKey of CONFIG.CHAIN_ORDER) {
+      const chain = CONFIG.CHAINS[chainKey];
 
-    // new best
-    if (isNewBest) {
-      const flash = 0.7 + Math.sin(Date.now() / 200) * 0.3;
-      ctx.globalAlpha = flash;
-      ctx.font = 'bold 18px Nunito, sans-serif';
-      ctx.fillStyle = CONFIG.COLORS.accent;
-      ctx.fillText('✨ NEW BEST! ✨', w / 2, panelY + 215);
-      ctx.globalAlpha = 1;
-    } else {
-      ctx.font = '14px Nunito, sans-serif';
-      ctx.fillStyle = CONFIG.COLORS.textLight;
-      ctx.fillText('Best: ' + highScore.toLocaleString(), w / 2, panelY + 215);
+      // chain label
+      ctx.font = 'bold 13px Nunito, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = CONFIG.COLORS.text;
+      ctx.fillText(`${chain.icon} ${chain.name}`, px + 15, iy);
+      iy += 20;
+
+      for (let lv = 0; lv < chain.items.length; lv++) {
+        const item = chain.items[lv];
+        const key = `${chainKey}_${lv + 1}`;
+        const found = discovered.has(key);
+        const ix = px + 15 + lv * 44;
+
+        // cell
+        ctx.fillStyle = found ? CONFIG.COLORS.chainColors[chainKey][lv] : '#F0F0F0';
+        this._roundRect(ctx, ix, iy, 38, 38, 8);
+        ctx.fill();
+
+        if (found) {
+          ctx.font = '20px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(item.emoji, ix + 19, iy + 20);
+        } else {
+          ctx.font = '18px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = '#C0C0C0';
+          ctx.fillText('?', ix + 19, iy + 20);
+        }
+      }
+      iy += 55;
     }
 
-    // play again button
-    const btnW = 180;
-    const btnH = 48;
-    const btnX = w / 2 - btnW / 2;
-    const btnY = panelY + panelH - 70;
-
-    ctx.fillStyle = CONFIG.COLORS.mochi[0];
-    this._roundRect(ctx, btnX, btnY, btnW, btnH, 24);
+    // close button
+    const closeBtnY = py + ph - 55;
+    ctx.fillStyle = '#FF7EB0';
+    this._roundRect(ctx, w / 2 - 60, closeBtnY, 120, 38, 19);
     ctx.fill();
-
-    ctx.font = 'bold 20px Nunito, sans-serif';
+    ctx.font = 'bold 16px Nunito, sans-serif';
+    ctx.textAlign = 'center';
     ctx.fillStyle = CONFIG.COLORS.white;
-    ctx.fillText('Play Again', w / 2, btnY + btnH / 2);
+    ctx.fillText('닫기', w / 2, closeBtnY + 19);
 
-    return { x: btnX, y: btnY, w: btnW, h: btnH };
+    return { closeBtn: { x: w / 2 - 60, y: closeBtnY, w: 120, h: 38 } };
+  }
+
+  drawHint(ctx, text, w) {
+    if (this.hintTimer < 5) return;
+    const alpha = Math.min(1, (this.hintTimer - 5) * 2);
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.7;
+    ctx.font = '13px Nunito, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = CONFIG.COLORS.textLight;
+    ctx.fillText(text, w / 2, CONFIG.GRID.OFFSET_Y - 8);
+    ctx.restore();
   }
 
   _roundRect(ctx, x, y, w, h, r) {
