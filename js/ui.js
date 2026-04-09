@@ -1,258 +1,271 @@
 class UI {
   constructor() {
     this.titleBounce = 0;
-    this.showCollection = false;
-    this.tutorialStep = 0;
-    this.hintTimer = 0;
-    this.hintVisible = false;
+    this.answerText = '';
+    this.answerFlash = 0;
+    this.answerCorrect = false;
+    this.answerWrong = false;
+    this.clearAnim = 0;
+    this.showClear = false;
   }
 
   update(dt) {
     this.titleBounce += dt * 2;
-    this.hintTimer += dt;
+    if (this.answerFlash > 0) this.answerFlash -= dt * 3;
+    if (this.showClear) this.clearAnim = Math.min(this.clearAnim + dt * 2, 1);
   }
 
-  drawTopBar(ctx, stars, energy, maxEnergy) {
+  drawHeader(ctx, stageData) {
     const w = CONFIG.CANVAS.WIDTH;
 
-    // background bar
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    this._roundRect(ctx, 10, 10, w - 20, 44, 14);
-    ctx.fill();
+    // header bg
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(0, 0, w, CONFIG.LAYOUT.headerH);
 
-    // stars
-    ctx.font = '18px sans-serif';
+    // stage number
+    ctx.font = 'bold 13px Nunito, sans-serif';
     ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('⭐', 22, 32);
+    ctx.fillStyle = CONFIG.COLORS.accent;
+    ctx.fillText(`STAGE ${stageData.id}`, 16, 22);
+
+    // title
     ctx.font = 'bold 18px Nunito, sans-serif';
     ctx.fillStyle = CONFIG.COLORS.text;
-    ctx.fillText(stars.toLocaleString(), 44, 32);
+    ctx.fillText(stageData.title, 16, 44);
 
-    // energy bar
-    const barX = 140;
-    const barY = 24;
-    const barW = 130;
-    const barH = 14;
-
-    ctx.font = '14px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('⚡', barX - 20, 32);
-
-    ctx.fillStyle = CONFIG.COLORS.energyBg;
-    this._roundRect(ctx, barX, barY, barW, barH, 7);
-    ctx.fill();
-
-    const ratio = energy / maxEnergy;
-    ctx.fillStyle = CONFIG.COLORS.energyBar;
-    if (barW * ratio > 1) {
-      this._roundRect(ctx, barX, barY, barW * ratio, barH, 7);
-      ctx.fill();
-    }
-
-    ctx.font = 'bold 11px Nunito, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = CONFIG.COLORS.text;
-    ctx.fillText(`${energy}/${maxEnergy}`, barX + barW / 2, barY + barH / 2 + 1);
-
-    // collection button
-    const btnX = w - 50;
-    ctx.font = '22px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('📖', btnX, 32);
-
-    return { collectionBtn: { x: btnX - 18, y: 14, w: 36, h: 36 } };
-  }
-
-  drawMenu(ctx, w, h) {
-    const bounceY = Math.sin(this.titleBounce) * 6;
-
-    // title
-    ctx.save();
-    ctx.translate(w / 2, h * 0.28 + bounceY);
-    ctx.font = 'bold 46px Nunito, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.strokeStyle = CONFIG.COLORS.white;
-    ctx.lineWidth = 6;
-    ctx.strokeText('Mochi Merge!', 0, 0);
-    ctx.fillStyle = '#FF7EB0';
-    ctx.fillText('Mochi Merge!', 0, 0);
-
-    ctx.font = '16px Nunito, sans-serif';
-    ctx.fillStyle = CONFIG.COLORS.textLight;
-    ctx.fillText('모찌 머지!', 0, 35);
-    ctx.restore();
-
-    // sample items
-    const emojis = ['🌸', '🍰', '🐱', '💐', '🍩', '🦄'];
-    const positions = [
-      { x: w * 0.2, y: h * 0.45 }, { x: w * 0.5, y: h * 0.42 }, { x: w * 0.8, y: h * 0.45 },
-      { x: w * 0.3, y: h * 0.52 }, { x: w * 0.6, y: h * 0.52 }, { x: w * 0.7, y: h * 0.48 }
-    ];
-    ctx.font = '36px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    for (let i = 0; i < emojis.length; i++) {
-      const p = positions[i];
-      const bob = Math.sin(this.titleBounce + i * 0.8) * 5;
-      ctx.fillText(emojis[i], p.x, p.y + bob);
-    }
-
-    // tap to start
-    const tapAlpha = 0.5 + Math.sin(Date.now() / 400) * 0.5;
-    ctx.globalAlpha = tapAlpha;
-    ctx.font = '22px Nunito, sans-serif';
-    ctx.fillStyle = CONFIG.COLORS.text;
-    ctx.fillText('Tap to Start!', w / 2, h * 0.65);
-    ctx.globalAlpha = 1;
-
-    // instructions
-    ctx.font = '14px Nunito, sans-serif';
-    ctx.fillStyle = CONFIG.COLORS.textLight;
-    ctx.fillText('같은 아이템을 합쳐서 새로운 아이템을 만드세요!', w / 2, h * 0.82);
-    ctx.fillText('주문을 완성하면 별을 받아요 ⭐', w / 2, h * 0.86);
-  }
-
-  drawTutorial(ctx, step, w, h) {
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    ctx.fillRect(0, 0, w, h);
-
-    const msgs = [
-      { emoji: '👆', text: '제너레이터를 탭해서\n아이템을 만드세요!', y: CONFIG.GENERATORS.y - 60 },
-      { emoji: '👉', text: '같은 아이템 위에\n드래그해서 합치세요!', y: CONFIG.GRID.OFFSET_Y + 60 },
-      { emoji: '📦', text: '주문에 맞는 아이템을 만들어\n탭하면 납품됩니다!', y: 140 }
-    ];
-
-    if (step >= msgs.length) return;
-    const msg = msgs[step];
-
-    // bubble
-    const bw = 260;
-    const bh = 90;
-    const bx = w / 2 - bw / 2;
-    const by = msg.y;
-
-    ctx.fillStyle = CONFIG.COLORS.white;
-    ctx.shadowColor = 'rgba(0,0,0,0.15)';
-    ctx.shadowBlur = 10;
-    this._roundRect(ctx, bx, by, bw, bh, 16);
-    ctx.fill();
-    ctx.shadowBlur = 0;
-
-    ctx.font = '30px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(msg.emoji, bx + 40, by + bh / 2);
-
-    ctx.font = '14px Nunito, sans-serif';
-    ctx.fillStyle = CONFIG.COLORS.text;
-    ctx.textAlign = 'left';
-    const lines = msg.text.split('\n');
-    lines.forEach((line, i) => {
-      ctx.fillText(line, bx + 65, by + bh / 2 - 8 + i * 20);
-    });
-
-    // tap to continue
-    const alpha = 0.5 + Math.sin(Date.now() / 300) * 0.5;
-    ctx.globalAlpha = alpha;
+    // description
     ctx.font = '12px Nunito, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = CONFIG.COLORS.textLight;
-    ctx.fillText('탭하여 계속', w / 2, by + bh + 20);
-    ctx.globalAlpha = 1;
+    ctx.textAlign = 'right';
+    ctx.fillStyle = CONFIG.COLORS.textDim;
+    ctx.fillText(stageData.desc, w - 16, 44);
   }
 
-  drawCollection(ctx, discovered, w, h) {
-    ctx.fillStyle = CONFIG.COLORS.overlay;
-    ctx.fillRect(0, 0, w, h);
+  drawAnswerInput(ctx, questionVisible) {
+    if (!questionVisible) return;
 
-    // panel
-    const pw = 340;
-    const ph = 560;
-    const px = w / 2 - pw / 2;
-    const py = h / 2 - ph / 2;
+    const w = CONFIG.CANVAS.WIDTH;
+    const y = CONFIG.LAYOUT.answerY;
 
-    ctx.fillStyle = CONFIG.COLORS.white;
-    ctx.shadowColor = 'rgba(0,0,0,0.2)';
-    ctx.shadowBlur = 15;
-    this._roundRect(ctx, px, py, pw, ph, 20);
+    // answer box
+    const boxW = 140;
+    const boxH = 36;
+    const bx = w / 2 - boxW / 2;
+
+    let borderColor = 'rgba(255,255,255,0.3)';
+    if (this.answerCorrect && this.answerFlash > 0) borderColor = CONFIG.COLORS.correct;
+    if (this.answerWrong && this.answerFlash > 0) borderColor = CONFIG.COLORS.wrong;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 2;
+    this._roundRect(ctx, bx, y - boxH / 2, boxW, boxH, 10);
     ctx.fill();
-    ctx.shadowBlur = 0;
+    ctx.stroke();
 
-    // title
-    ctx.font = 'bold 24px Nunito, sans-serif';
+    // answer text
+    ctx.font = 'bold 22px Nunito, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillStyle = CONFIG.COLORS.text;
-    ctx.fillText('📖 도감', w / 2, py + 35);
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = this.answerText ? CONFIG.COLORS.white : 'rgba(255,255,255,0.3)';
+    ctx.fillText(this.answerText || '???', w / 2, y);
+    ctx.textBaseline = 'alphabetic';
+  }
 
-    // count
-    ctx.font = '13px Nunito, sans-serif';
-    ctx.fillStyle = CONFIG.COLORS.textLight;
-    ctx.fillText(`${discovered.size} / 21 발견`, w / 2, py + 55);
+  drawKeypad(ctx) {
+    const L = CONFIG.LAYOUT;
+    const w = CONFIG.CANVAS.WIDTH;
+    const keys = [
+      ['1', '2', '3'],
+      ['4', '5', '6'],
+      ['7', '8', '9'],
+      ['←', '0', '✓']
+    ];
+    const cw = L.keypadCellW;
+    const ch = L.keypadCellH;
+    const gap = L.keypadGap;
+    const totalW = 3 * cw + 2 * gap;
+    const startX = w / 2 - totalW / 2;
 
-    // items grid
-    let iy = py + 80;
-    for (const chainKey of CONFIG.CHAIN_ORDER) {
-      const chain = CONFIG.CHAINS[chainKey];
+    const rects = [];
 
-      // chain label
-      ctx.font = 'bold 13px Nunito, sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillStyle = CONFIG.COLORS.text;
-      ctx.fillText(`${chain.icon} ${chain.name}`, px + 15, iy);
-      iy += 20;
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 3; c++) {
+        const key = keys[r][c];
+        const x = startX + c * (cw + gap);
+        const y = L.keypadTop + r * (ch + gap);
 
-      for (let lv = 0; lv < chain.items.length; lv++) {
-        const item = chain.items[lv];
-        const key = `${chainKey}_${lv + 1}`;
-        const found = discovered.has(key);
-        const ix = px + 15 + lv * 44;
+        let bgColor = CONFIG.COLORS.keypad;
+        if (key === '✓') bgColor = CONFIG.COLORS.correct;
+        if (key === '←') bgColor = CONFIG.COLORS.accent;
 
-        // cell
-        ctx.fillStyle = found ? CONFIG.COLORS.chainColors[chainKey][lv] : '#F0F0F0';
-        this._roundRect(ctx, ix, iy, 38, 38, 8);
+        ctx.fillStyle = bgColor;
+        this._roundRect(ctx, x, y, cw, ch, 10);
         ctx.fill();
 
-        if (found) {
-          ctx.font = '20px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(item.emoji, ix + 19, iy + 20);
-        } else {
-          ctx.font = '18px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillStyle = '#C0C0C0';
-          ctx.fillText('?', ix + 19, iy + 20);
-        }
+        ctx.font = key === '✓' || key === '←' ? 'bold 18px sans-serif' : 'bold 20px Nunito, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = CONFIG.COLORS.white;
+        ctx.fillText(key, x + cw / 2, y + ch / 2);
+        ctx.textBaseline = 'alphabetic';
+
+        rects.push({ key, x, y, w: cw, h: ch });
       }
-      iy += 55;
     }
-
-    // close button
-    const closeBtnY = py + ph - 55;
-    ctx.fillStyle = '#FF7EB0';
-    this._roundRect(ctx, w / 2 - 60, closeBtnY, 120, 38, 19);
-    ctx.fill();
-    ctx.font = 'bold 16px Nunito, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = CONFIG.COLORS.white;
-    ctx.fillText('닫기', w / 2, closeBtnY + 19);
-
-    return { closeBtn: { x: w / 2 - 60, y: closeBtnY, w: 120, h: 38 } };
+    return rects;
   }
 
-  drawHint(ctx, text, w) {
-    if (this.hintTimer < 5) return;
-    const alpha = Math.min(1, (this.hintTimer - 5) * 2);
+  hitKeypad(px, py, keyRects) {
+    for (const k of keyRects) {
+      if (px >= k.x && px <= k.x + k.w && py >= k.y && py <= k.y + k.h) {
+        return k.key;
+      }
+    }
+    return null;
+  }
+
+  drawMenu(ctx, w, h, maxStage) {
+    const bounce = Math.sin(this.titleBounce) * 6;
+
+    // title
     ctx.save();
-    ctx.globalAlpha = alpha * 0.7;
-    ctx.font = '13px Nunito, sans-serif';
+    ctx.translate(w / 2, h * 0.22 + bounce);
+    ctx.font = 'bold 42px Nunito, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillStyle = CONFIG.COLORS.textLight;
-    ctx.fillText(text, w / 2, CONFIG.GRID.OFFSET_Y - 8);
+    ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+    ctx.lineWidth = 6;
+    ctx.strokeText('HINT ROOM', 0, 0);
+    ctx.fillStyle = CONFIG.COLORS.accent;
+    ctx.fillText('HINT ROOM', 0, 0);
     ctx.restore();
+
+    ctx.font = '16px Nunito, sans-serif';
+    ctx.fillStyle = CONFIG.COLORS.textDim;
+    ctx.textAlign = 'center';
+    ctx.fillText('힌트 룸', w / 2, h * 0.22 + bounce + 30);
+
+    // decorative emojis
+    const emojis = ['🔍', '💡', '🧩', '🔑', '🧠', '⭐'];
+    emojis.forEach((e, i) => {
+      const angle = this.titleBounce * 0.5 + i * (Math.PI * 2 / emojis.length);
+      const ex = w / 2 + Math.cos(angle) * 100;
+      const ey = h * 0.42 + Math.sin(angle) * 60;
+      ctx.font = '28px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(e, ex, ey);
+    });
+
+    // description
+    ctx.font = '14px Nunito, sans-serif';
+    ctx.fillStyle = CONFIG.COLORS.text;
+    ctx.textAlign = 'center';
+    ctx.fillText('물체를 올바른 위치에 놓아 힌트를 찾고', w / 2, h * 0.58);
+    ctx.fillText('논리적으로 문제를 풀어보세요!', w / 2, h * 0.62);
+
+    // play button
+    const btnW = 200;
+    const btnH = 50;
+    const btnX = w / 2 - btnW / 2;
+    const btnY = h * 0.72;
+
+    ctx.fillStyle = CONFIG.COLORS.accent;
+    ctx.shadowColor = CONFIG.COLORS.accentGlow;
+    ctx.shadowBlur = 15;
+    this._roundRect(ctx, btnX, btnY, btnW, btnH, 25);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.font = 'bold 20px Nunito, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = CONFIG.COLORS.white;
+    const btnText = maxStage > 1 ? `이어서 하기 (Stage ${maxStage})` : '게임 시작';
+    ctx.fillText(btnText, w / 2, btnY + btnH / 2);
+    ctx.textBaseline = 'alphabetic';
+
+    // progress
+    if (maxStage > 1) {
+      ctx.font = '12px Nunito, sans-serif';
+      ctx.fillStyle = CONFIG.COLORS.textDim;
+      ctx.fillText(`진행: ${maxStage - 1} / ${CONFIG.STAGES.length} 클리어`, w / 2, btnY + btnH + 25);
+    }
+
+    return { btn: { x: btnX, y: btnY, w: btnW, h: btnH } };
+  }
+
+  drawStageClear(ctx, w, h, stageId) {
+    if (!this.showClear) return null;
+
+    const a = Math.min(this.clearAnim, 1);
+    ctx.fillStyle = `rgba(0,0,0,${0.6 * a})`;
+    ctx.fillRect(0, 0, w, h);
+
+    const scale = 0.5 + a * 0.5;
+    ctx.save();
+    ctx.translate(w / 2, h * 0.35);
+    ctx.scale(scale, scale);
+    ctx.globalAlpha = a;
+
+    ctx.font = 'bold 40px Nunito, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = CONFIG.COLORS.gold;
+    ctx.fillText('⭐ STAGE CLEAR! ⭐', 0, 0);
+
+    ctx.font = '20px Nunito, sans-serif';
+    ctx.fillStyle = CONFIG.COLORS.text;
+    ctx.fillText(`Stage ${stageId} 클리어!`, 0, 45);
+
+    ctx.restore();
+
+    if (a >= 1) {
+      const isLast = stageId >= CONFIG.STAGES.length;
+      const btnW = 180;
+      const btnH = 48;
+      const btnX = w / 2 - btnW / 2;
+      const btnY = h * 0.55;
+
+      ctx.fillStyle = CONFIG.COLORS.accent;
+      this._roundRect(ctx, btnX, btnY, btnW, btnH, 24);
+      ctx.fill();
+
+      ctx.font = 'bold 18px Nunito, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = CONFIG.COLORS.white;
+      ctx.fillText(isLast ? '🎉 축하합니다!' : '다음 스테이지 →', w / 2, btnY + btnH / 2);
+      ctx.textBaseline = 'alphabetic';
+
+      if (isLast) {
+        ctx.font = '14px Nunito, sans-serif';
+        ctx.fillStyle = CONFIG.COLORS.textDim;
+        ctx.fillText('모든 스테이지를 클리어했습니다!', w / 2, btnY + btnH + 30);
+
+        // menu button
+        const menuBtnY = btnY + btnH + 50;
+        ctx.fillStyle = CONFIG.COLORS.keypad;
+        this._roundRect(ctx, btnX, menuBtnY, btnW, btnH, 24);
+        ctx.fill();
+        ctx.font = 'bold 16px Nunito, sans-serif';
+        ctx.fillStyle = CONFIG.COLORS.white;
+        ctx.textBaseline = 'middle';
+        ctx.fillText('메뉴로', w / 2, menuBtnY + btnH / 2);
+        ctx.textBaseline = 'alphabetic';
+
+        return {
+          nextBtn: null,
+          menuBtn: { x: btnX, y: menuBtnY, w: btnW, h: btnH }
+        };
+      }
+
+      return { nextBtn: { x: btnX, y: btnY, w: btnW, h: btnH } };
+    }
+    return null;
+  }
+
+  drawAllClear(ctx, w, h) {
+    // already handled in drawStageClear for last stage
   }
 
   _roundRect(ctx, x, y, w, h, r) {

@@ -1,4 +1,4 @@
-const State = { MENU: 0, TUTORIAL: 1, PLAYING: 2, COLLECTION: 3 };
+const State = { MENU: 0, PLAYING: 1, CLEAR: 2 };
 
 class Game {
   constructor() {
@@ -6,29 +6,33 @@ class Game {
     this.ctx = this.canvas.getContext('2d');
     this.audio = new AudioManager();
     this.particles = new ParticleSystem();
-    this.board = new Board(this.audio, this.particles);
-    this.orders = new OrderManager();
     this.ui = new UI();
 
     this.state = State.MENU;
     this.scale = 1;
     this.lastTime = 0;
-    this.saveTimer = 0;
     this.sparkleTimer = 0;
-    this.uiRects = {};
+
+    this.currentStageIdx = 0;
+    this.stage = null;
+    this.dragging = null;
+    this.dragOffsetX = 0;
+    this.dragOffsetY = 0;
+    this.pointerX = 0;
+    this.pointerY = 0;
+
+    this.keyRects = [];
+    this.menuRects = {};
+    this.clearRects = null;
+
+    // load progress
+    this.maxUnlockedStage = parseInt(localStorage.getItem('hintRoomProgress')) || 1;
 
     this._setupCanvas();
     this._setupEvents();
 
-    // try load saved game
-    const saved = SaveManager.load();
-    if (saved) {
-      this.board.deserialize(saved.board);
-      this.orders.deserialize(saved.orders);
-    }
-
     document.fonts.ready.then(() => {
-      requestAnimationFrame((t) => this._loop(t));
+      requestAnimationFrame(t => this._loop(t));
     });
   }
 
@@ -36,14 +40,14 @@ class Game {
     const resize = () => {
       const vw = window.innerWidth;
       const vh = window.innerHeight;
-      const target = CONFIG.CANVAS.WIDTH / CONFIG.CANVAS.HEIGHT;
-      const screen = vw / vh;
-      if (screen > target) {
+      const ratio = CONFIG.CANVAS.WIDTH / CONFIG.CANVAS.HEIGHT;
+      const sr = vw / vh;
+      if (sr > ratio) {
         this.canvas.height = vh;
-        this.canvas.width = vh * target;
+        this.canvas.width = vh * ratio;
       } else {
         this.canvas.width = vw;
-        this.canvas.height = vw / target;
+        this.canvas.height = vw / ratio;
       }
       this.scale = this.canvas.width / CONFIG.CANVAS.WIDTH;
     };
@@ -51,128 +55,206 @@ class Game {
     resize();
   }
 
-  _setupEvents() {
-    const getPos = (e) => {
-      const rect = this.canvas.getBoundingClientRect();
-      return {
-        x: (e.clientX - rect.left) / this.scale,
-        y: (e.clientY - rect.top) / this.scale
-      };
+  _getPos(e) {
+    const r = this.canvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - r.left) / this.scale,
+      y: (e.clientY - r.top) / this.scale
     };
+  }
 
-    this.canvas.addEventListener('pointerdown', (e) => {
+  _setupEvents() {
+    this.canvas.addEventListener('pointerdown', e => {
       e.preventDefault();
       this.audio.init();
-      const pos = getPos(e);
-      this._handleDown(pos.x, pos.y);
+      const p = this._getPos(e);
+      this._onDown(p.x, p.y);
     }, { passive: false });
 
-    this.canvas.addEventListener('pointermove', (e) => {
+    this.canvas.addEventListener('pointermove', e => {
       e.preventDefault();
-      const pos = getPos(e);
-      this._handleMove(pos.x, pos.y);
+      const p = this._getPos(e);
+      this._onMove(p.x, p.y);
     }, { passive: false });
 
-    this.canvas.addEventListener('pointerup', (e) => {
+    this.canvas.addEventListener('pointerup', e => {
       e.preventDefault();
-      const pos = getPos(e);
-      this._handleUp(pos.x, pos.y);
+      const p = this._getPos(e);
+      this._onUp(p.x, p.y);
     }, { passive: false });
 
-    this.canvas.addEventListener('pointercancel', (e) => {
-      if (this.board.dragging) {
-        this.board.dragging.targetScale = 1;
-        this.board.dragging.setGridPos(this.board.dragStartGX, this.board.dragStartGY);
-        this.board.dragging = null;
+    this.canvas.addEventListener('pointercancel', () => {
+      if (this.dragging) {
+        this.dragging.returnHome();
+        this.dragging.targetScale = 1;
+        this.dragging = null;
       }
     });
   }
 
-  _handleDown(x, y) {
+  _startStage(idx) {
+    if (idx >= CONFIG.STAGES.length) {
+      this.state = State.MENU;
+      return;
+    }
+    this.currentStageIdx = idx;
+    this.stage = new Stage(CONFIG.STAGES[idx], this.audio, this.particles);
+    this.ui.answerText = '';
+    this.ui.answerFlash = 0;
+    this.ui.answerCorrect = false;
+    this.ui.answerWrong = false;
+    this.ui.showClear = false;
+    this.ui.clearAnim = 0;
+    this.state = State.PLAYING;
+    this.dragging = null;
+  }
+
+  _onDown(x, y) {
     if (this.state === State.MENU) {
-      this.state = SaveManager.hasSave() ? State.PLAYING : State.TUTORIAL;
-      if (this.state === State.TUTORIAL) {
-        this.ui.tutorialStep = 0;
-      }
-      if (!SaveManager.hasSave()) {
-        this.orders.init();
-      }
-      this.audio.playStart();
-      return;
-    }
-
-    if (this.state === State.TUTORIAL) {
-      this.ui.tutorialStep++;
-      if (this.ui.tutorialStep >= 3) {
-        this.state = State.PLAYING;
-      }
-      return;
-    }
-
-    if (this.state === State.COLLECTION) {
-      const btn = this.uiRects.closeBtn;
+      const btn = this.menuRects.btn;
       if (btn && x >= btn.x && x <= btn.x + btn.w && y >= btn.y && y <= btn.y + btn.h) {
-        this.state = State.PLAYING;
+        this._startStage(this.maxUnlockedStage - 1);
+        this.audio.playPickup();
+      }
+      return;
+    }
+
+    if (this.state === State.CLEAR) {
+      if (this.clearRects) {
+        const nb = this.clearRects.nextBtn;
+        if (nb && x >= nb.x && x <= nb.x + nb.w && y >= nb.y && y <= nb.y + nb.h) {
+          this._startStage(this.currentStageIdx + 1);
+          this.audio.playPickup();
+        }
+        const mb = this.clearRects.menuBtn;
+        if (mb && x >= mb.x && x <= mb.x + mb.w && y >= mb.y && y <= mb.y + mb.h) {
+          this.state = State.MENU;
+          this.audio.playPickup();
+        }
       }
       return;
     }
 
     // PLAYING state
-    // check collection button
-    const colBtn = this.uiRects.collectionBtn;
-    if (colBtn && x >= colBtn.x && x <= colBtn.x + colBtn.w && y >= colBtn.y && y <= colBtn.y + colBtn.h) {
-      this.state = State.COLLECTION;
-      return;
-    }
 
-    // check if tapping an item on the board (for delivery)
-    const gp = this.board.getGridPos(x, y);
-    if (gp) {
-      const item = this.board.grid[gp.row][gp.col];
-      if (item && !item.removing) {
-        // try deliver first on single tap (will be checked on up as well)
-        this._tapTarget = item;
+    // check keypad
+    if (this.stage && this.stage.questionVisible) {
+      const key = this.ui.hitKeypad(x, y, this.keyRects);
+      if (key) {
+        this._handleKey(key);
+        return;
       }
     }
 
-    // delegate to board (generators + drag start)
-    const result = this.board.handlePointerDown(x, y);
-    if (result === 'generator') {
-      this.ui.hintTimer = 0; // reset hint on action
+    // check objects for drag
+    if (!this.stage) return;
+    for (let i = this.stage.objects.length - 1; i >= 0; i--) {
+      const obj = this.stage.objects[i];
+      if (obj.hitTest(x, y)) {
+        this.dragging = obj;
+        this.dragOffsetX = x - obj.x;
+        this.dragOffsetY = y - obj.y;
+        this.pointerX = x;
+        this.pointerY = y;
+        obj.targetScale = 1.2;
+        this.audio.playPickup();
+
+        // remove from current zone if placed
+        this.stage.removeFromZone(obj);
+        return;
+      }
     }
   }
 
-  _handleMove(x, y) {
-    if (this.state !== State.PLAYING) return;
-    this.board.handlePointerMove(x, y);
-    if (this.board.dragging) {
-      this._tapTarget = null; // moved, not a tap
+  _onMove(x, y) {
+    if (!this.dragging) return;
+    this.pointerX = x;
+    this.pointerY = y;
+  }
+
+  _onUp(x, y) {
+    if (!this.dragging) return;
+    const obj = this.dragging;
+    obj.targetScale = 1;
+    this.dragging = null;
+
+    // check if dropped on a zone
+    let placed = false;
+    for (const zone of this.stage.zones) {
+      if (zone.hitTest(x, y)) {
+        // check if zone already occupied by another object
+        const occupier = this.stage.objects.find(
+          o => o !== obj && o.placedZoneId === zone.id
+        );
+        if (occupier) {
+          // swap: send occupier back home
+          this.stage.removeFromZone(occupier);
+          occupier.returnHome();
+        }
+        this.stage.placeObject(obj, zone);
+        placed = true;
+        this.audio.playDrop();
+        break;
+      }
+    }
+
+    if (!placed) {
+      obj.returnHome();
+      this.audio.playDrop();
     }
   }
 
-  _handleUp(x, y) {
-    if (this.state !== State.PLAYING) return;
+  _handleKey(key) {
+    this.audio.playKeypress();
 
-    // if we were dragging, handle drop
-    if (this.board.dragging) {
-      const result = this.board.handlePointerUp(x, y);
-      this.ui.hintTimer = 0;
+    if (key === '←') {
+      this.ui.answerText = this.ui.answerText.slice(0, -1);
       return;
     }
 
-    // tap delivery: if user tapped (didn't drag) on an item
-    if (this._tapTarget) {
-      const item = this._tapTarget;
-      this._tapTarget = null;
+    if (key === '✓') {
+      this._checkAnswer();
+      return;
+    }
 
-      const order = this.orders.tryDeliver(item);
-      if (order) {
-        const pos = this.board.getScreenPos(item.gridX, item.gridY);
-        this.particles.emitSpawn(pos.x, pos.y);
-        this.audio.playSpawn();
-        this.board.removeItem(item);
-        this.ui.hintTimer = 0;
+    // number
+    if (this.ui.answerText.length < 6) {
+      this.ui.answerText += key;
+    }
+  }
+
+  _checkAnswer() {
+    if (!this.stage || !this.ui.answerText) return;
+
+    if (this.ui.answerText === this.stage.data.answer) {
+      // correct!
+      this.ui.answerCorrect = true;
+      this.ui.answerWrong = false;
+      this.ui.answerFlash = 1;
+      this.audio.playStageClear();
+      this.particles.emitClear(CONFIG.CANVAS.WIDTH / 2, CONFIG.CANVAS.HEIGHT * 0.4);
+
+      // unlock next stage
+      const nextStage = this.currentStageIdx + 2; // 1-indexed
+      if (nextStage > this.maxUnlockedStage) {
+        this.maxUnlockedStage = nextStage;
+        localStorage.setItem('hintRoomProgress', this.maxUnlockedStage.toString());
       }
+
+      // show clear screen after delay
+      setTimeout(() => {
+        this.state = State.CLEAR;
+        this.ui.showClear = true;
+        this.ui.clearAnim = 0;
+      }, 600);
+    } else {
+      // wrong
+      this.ui.answerWrong = true;
+      this.ui.answerCorrect = false;
+      this.ui.answerFlash = 1;
+      this.audio.playWrong();
+      this.particles.emitWrong(CONFIG.CANVAS.WIDTH / 2, CONFIG.LAYOUT.answerY);
+      this.ui.answerText = '';
     }
   }
 
@@ -180,23 +262,19 @@ class Game {
     this.ui.update(dt);
     this.particles.update(dt);
 
-    // background sparkle
     this.sparkleTimer += dt * 1000;
-    if (this.sparkleTimer > 400) {
-      this.sparkleTimer -= 400;
+    if (this.sparkleTimer > CONFIG.PARTICLES.sparkleInterval) {
+      this.sparkleTimer -= CONFIG.PARTICLES.sparkleInterval;
       this.particles.emitSparkle(CONFIG.CANVAS.WIDTH, CONFIG.CANVAS.HEIGHT);
     }
 
-    if (this.state === State.PLAYING) {
-      this.board.update(dt);
-      this.orders.update(dt);
-      this.orders.collectCompleted(this.particles, this.audio);
+    if (this.state === State.PLAYING && this.stage) {
+      this.stage.update(dt);
 
-      // auto save
-      this.saveTimer += dt;
-      if (this.saveTimer > 30) {
-        this.saveTimer = 0;
-        SaveManager.save(this.board, this.orders);
+      // update dragging object position
+      if (this.dragging) {
+        this.dragging.targetX = this.pointerX - this.dragOffsetX;
+        this.dragging.targetY = this.pointerY - this.dragOffsetY;
       }
     }
   }
@@ -216,44 +294,31 @@ class Game {
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
 
-    // background particles
     this.particles.draw(ctx);
 
     if (this.state === State.MENU) {
-      this.ui.drawMenu(ctx, w, h);
-    } else {
-      // top bar
-      this.uiRects = this.ui.drawTopBar(ctx, this.orders.stars, this.board.energy, CONFIG.ENERGY.max);
+      this.menuRects = this.ui.drawMenu(ctx, w, h, this.maxUnlockedStage) || {};
+    }
 
-      // orders
-      this.orders.draw(ctx);
+    if (this.state === State.PLAYING && this.stage) {
+      this.ui.drawHeader(ctx, this.stage.data);
+      this.stage.draw(ctx);
+      this.stage.drawHintPanel(ctx);
+      this.ui.drawAnswerInput(ctx, this.stage.questionVisible);
 
-      // board
-      this.board.draw(ctx);
-
-      // hint
-      const g = CONFIG.GRID;
-      let hasItems = false;
-      for (let r = 0; r < g.ROWS && !hasItems; r++)
-        for (let c = 0; c < g.COLS && !hasItems; c++)
-          if (this.board.grid[r][c]) hasItems = true;
-
-      if (hasItems) {
-        this.ui.drawHint(ctx, '💡 같은 아이템끼리 합쳐보세요!', w);
-      } else {
-        this.ui.drawHint(ctx, '👆 위 버튼을 탭해서 아이템을 만드세요!', w);
+      if (this.stage.questionVisible) {
+        this.keyRects = this.ui.drawKeypad(ctx);
       }
+    }
 
-      // tutorial overlay
-      if (this.state === State.TUTORIAL) {
-        this.ui.drawTutorial(ctx, this.ui.tutorialStep, w, h);
+    if (this.state === State.CLEAR) {
+      // draw the stage behind
+      if (this.stage) {
+        this.ui.drawHeader(ctx, this.stage.data);
+        this.stage.draw(ctx);
+        this.stage.drawHintPanel(ctx);
       }
-
-      // collection overlay
-      if (this.state === State.COLLECTION) {
-        const rects = this.ui.drawCollection(ctx, this.board.discovered, w, h);
-        if (rects) Object.assign(this.uiRects, rects);
-      }
+      this.clearRects = this.ui.drawStageClear(ctx, w, h, this.stage ? this.stage.data.id : 0);
     }
 
     ctx.restore();
@@ -264,10 +329,8 @@ class Game {
     this.lastTime = timestamp;
     this._update(dt);
     this._draw();
-    requestAnimationFrame((t) => this._loop(t));
+    requestAnimationFrame(t => this._loop(t));
   }
 }
 
-window.addEventListener('DOMContentLoaded', () => {
-  new Game();
-});
+window.addEventListener('DOMContentLoaded', () => new Game());

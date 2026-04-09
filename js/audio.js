@@ -9,57 +9,61 @@ class AudioManager {
     try {
       this.ctx = new (window.AudioContext || window.webkitAudioContext)();
       this.initialized = true;
-    } catch (e) {
-      console.warn('Web Audio API not supported');
-    }
+    } catch (e) {}
   }
 
-  _playTone(freq, duration, type = 'sine', vol = 0.12, delay = 0) {
+  _tone(freq, dur, type = 'sine', vol = 0.1, delay = 0) {
     if (!this.ctx) return;
     const t = this.ctx.currentTime + delay;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, t);
-    gain.gain.setValueAtTime(vol, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-    osc.start(t);
-    osc.stop(t + duration);
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g);
+    g.connect(this.ctx.destination);
+    o.start(t);
+    o.stop(t + dur);
   }
 
-  playSpawn() {
-    this._playTone(500, 0.1, 'sine', 0.08);
-    this._playTone(700, 0.1, 'sine', 0.06, 0.05);
-  }
-
-  playMerge(level) {
-    const base = 400 + level * 80;
-    this._playTone(base, 0.12, 'sine', 0.1);
-    this._playTone(base * 1.25, 0.12, 'sine', 0.08, 0.06);
-    this._playTone(base * 1.5, 0.15, 'sine', 0.1, 0.12);
-    if (level >= 5) {
-      this._playTone(base * 2, 0.2, 'sine', 0.06, 0.18);
-    }
-  }
-
-  playDeliver() {
-    const notes = [600, 750, 900, 1100];
-    notes.forEach((f, i) => this._playTone(f, 0.12, 'sine', 0.1, i * 0.06));
+  playPickup() {
+    this._tone(400, 0.08, 'sine', 0.08);
   }
 
   playDrop() {
-    this._playTone(300, 0.08, 'triangle', 0.06);
+    this._tone(300, 0.1, 'triangle', 0.06);
   }
 
-  playError() {
-    this._playTone(200, 0.15, 'triangle', 0.08);
+  playCorrect() {
+    this._tone(523, 0.12, 'sine', 0.1);
+    this._tone(659, 0.12, 'sine', 0.1, 0.08);
+    this._tone(784, 0.18, 'sine', 0.12, 0.16);
   }
 
-  playStart() {
-    this._playTone(400, 0.12, 'sine', 0.08);
-    this._playTone(600, 0.12, 'sine', 0.08, 0.1);
-    this._playTone(800, 0.18, 'sine', 0.1, 0.2);
+  playWrong() {
+    this._tone(200, 0.2, 'sawtooth', 0.06);
+    this._tone(180, 0.25, 'sawtooth', 0.04, 0.1);
+  }
+
+  playHint() {
+    this._tone(600, 0.15, 'sine', 0.08);
+    this._tone(800, 0.1, 'sine', 0.06, 0.1);
+  }
+
+  playKeypress() {
+    this._tone(500, 0.05, 'sine', 0.04);
+  }
+
+  playStageClear() {
+    [523, 659, 784, 1047].forEach((f, i) =>
+      this._tone(f, 0.2, 'sine', 0.1, i * 0.1)
+    );
+  }
+
+  playAllHints() {
+    this._tone(440, 0.15, 'sine', 0.08);
+    this._tone(550, 0.15, 'sine', 0.08, 0.1);
+    this._tone(660, 0.2, 'sine', 0.1, 0.2);
   }
 }

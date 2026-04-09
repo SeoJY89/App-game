@@ -1,75 +1,66 @@
 class Particle {
-  constructor(x, y, vx, vy, radius, color, life) {
-    this.x = x;
-    this.y = y;
-    this.vx = vx;
-    this.vy = vy;
-    this.radius = radius;
-    this.color = color;
-    this.life = life;
-    this.maxLife = life;
-    this.alive = true;
+  constructor(x, y, vx, vy, r, color, life) {
+    this.x = x; this.y = y; this.vx = vx; this.vy = vy;
+    this.r = r; this.color = color;
+    this.life = life; this.maxLife = life; this.alive = true;
   }
-
   update(dt) {
     this.x += this.vx * dt;
     this.y += this.vy * dt;
-    this.vy += 60 * dt;
+    this.vy += 50 * dt;
     this.life -= dt;
     if (this.life <= 0) this.alive = false;
   }
-
   draw(ctx) {
     const a = Math.max(0, this.life / this.maxLife);
-    const s = 0.3 + 0.7 * a;
     ctx.globalAlpha = a;
     ctx.fillStyle = this.color;
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.radius * s, 0, Math.PI * 2);
+    ctx.arc(this.x, this.y, this.r * (0.3 + 0.7 * a), 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
   }
 }
 
 class ParticleSystem {
-  constructor() {
-    this.particles = [];
-  }
+  constructor() { this.particles = []; }
 
-  _emit(x, y, count, speed, color, life, radius) {
-    if (this.particles.length >= CONFIG.PARTICLES.maxParticles) return;
+  _emit(x, y, count, speed, colors, life, r) {
     for (let i = 0; i < count; i++) {
-      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.4;
-      const spd = speed * (0.6 + Math.random() * 0.8);
-      const vx = Math.cos(angle) * spd;
-      const vy = Math.sin(angle) * spd - 30;
-      const r = radius * (0.6 + Math.random() * 0.8);
-      const l = life * (0.7 + Math.random() * 0.6);
-      this.particles.push(new Particle(x, y, vx, vy, r, color, l));
+      if (this.particles.length >= CONFIG.PARTICLES.maxParticles) break;
+      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
+      const spd = speed * (0.5 + Math.random());
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      this.particles.push(new Particle(
+        x, y, Math.cos(angle) * spd, Math.sin(angle) * spd - 20,
+        r * (0.5 + Math.random()), color, life * (0.7 + Math.random() * 0.6)
+      ));
     }
   }
 
-  emitMerge(x, y, color) {
-    this._emit(x, y, CONFIG.PARTICLES.mergeCount, 100, color, 0.5, 5);
-    this._emit(x, y, 4, 60, CONFIG.COLORS.accent, 0.6, 3);
+  emitCorrect(x, y) {
+    this._emit(x, y, CONFIG.PARTICLES.correctCount, 80,
+      [CONFIG.COLORS.correct, CONFIG.COLORS.textHint, '#FFFFFF'], 0.6, 4);
   }
 
-  emitSpawn(x, y) {
-    this._emit(x, y, CONFIG.PARTICLES.spawnCount, 50, '#FFFFFF', 0.4, 3);
+  emitClear(x, y) {
+    this._emit(x, y, CONFIG.PARTICLES.clearCount, 140,
+      [CONFIG.COLORS.gold, CONFIG.COLORS.accent, '#FFFFFF', CONFIG.COLORS.correct], 1, 5);
   }
 
-  emitDeliver(x, y) {
-    this._emit(x, y, CONFIG.PARTICLES.deliverCount, 120, CONFIG.COLORS.accent, 0.7, 4);
-    this._emit(x, y, 5, 80, '#FFFFFF', 0.5, 3);
+  emitWrong(x, y) {
+    this._emit(x, y, 6, 50, [CONFIG.COLORS.wrong], 0.4, 3);
   }
 
   emitSparkle(w, h) {
     if (this.particles.length >= CONFIG.PARTICLES.maxParticles) return;
-    const x = Math.random() * w;
-    const y = Math.random() * h;
-    const colors = ['#FFD700', '#FFFFFF', '#FFB8D0', '#B8E6C8'];
-    const color = colors[Math.floor(Math.random() * colors.length)];
-    this.particles.push(new Particle(x, y, (Math.random() - 0.5) * 8, -3 - Math.random() * 8, 1.5 + Math.random() * 1.5, color, 2 + Math.random()));
+    const colors = ['rgba(255,255,255,0.6)', 'rgba(120,232,176,0.4)', 'rgba(233,69,96,0.3)'];
+    this.particles.push(new Particle(
+      Math.random() * w, Math.random() * h,
+      (Math.random() - 0.5) * 6, -2 - Math.random() * 5,
+      1 + Math.random(), colors[Math.floor(Math.random() * colors.length)],
+      2 + Math.random() * 2
+    ));
   }
 
   update(dt) {
@@ -79,7 +70,5 @@ class ParticleSystem {
     }
   }
 
-  draw(ctx) {
-    for (const p of this.particles) p.draw(ctx);
-  }
+  draw(ctx) { for (const p of this.particles) p.draw(ctx); }
 }
