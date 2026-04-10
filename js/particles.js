@@ -7,7 +7,7 @@ class Particle {
   update(dt) {
     this.x += this.vx * dt;
     this.y += this.vy * dt;
-    this.vy += 50 * dt;
+    this.vy += 40 * dt;
     this.life -= dt;
     if (this.life <= 0) this.alive = false;
   }
@@ -25,41 +25,29 @@ class Particle {
 class ParticleSystem {
   constructor() { this.particles = []; }
 
-  _emit(x, y, count, speed, colors, life, r) {
-    for (let i = 0; i < count; i++) {
-      if (this.particles.length >= CONFIG.PARTICLES.maxParticles) break;
-      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
-      const spd = speed * (0.5 + Math.random());
-      const color = colors[Math.floor(Math.random() * colors.length)];
+  emitSolved(x, y) {
+    const colors = ['#7ee8a0', '#f5e6a8', '#FFFFFF'];
+    for (let i = 0; i < 20; i++) {
+      const angle = (Math.PI * 2 * i) / 20;
+      const spd = 80 + Math.random() * 60;
       this.particles.push(new Particle(
-        x, y, Math.cos(angle) * spd, Math.sin(angle) * spd - 20,
-        r * (0.5 + Math.random()), color, life * (0.7 + Math.random() * 0.6)
+        x, y, Math.cos(angle) * spd, Math.sin(angle) * spd - 30,
+        3 + Math.random() * 3,
+        colors[Math.floor(Math.random() * colors.length)],
+        0.8 + Math.random() * 0.4
       ));
     }
   }
 
-  emitCorrect(x, y) {
-    this._emit(x, y, CONFIG.PARTICLES.correctCount, 80,
-      [CONFIG.COLORS.correct, CONFIG.COLORS.textHint, '#FFFFFF'], 0.6, 4);
-  }
-
-  emitClear(x, y) {
-    this._emit(x, y, CONFIG.PARTICLES.clearCount, 140,
-      [CONFIG.COLORS.gold, CONFIG.COLORS.accent, '#FFFFFF', CONFIG.COLORS.correct], 1, 5);
-  }
-
-  emitWrong(x, y) {
-    this._emit(x, y, 6, 50, [CONFIG.COLORS.wrong], 0.4, 3);
-  }
-
-  emitSparkle(w, h) {
-    if (this.particles.length >= CONFIG.PARTICLES.maxParticles) return;
-    const colors = ['rgba(255,255,255,0.6)', 'rgba(120,232,176,0.4)', 'rgba(233,69,96,0.3)'];
+  emitAmbient(w, h) {
+    if (this.particles.length > 30) return;
+    const colors = ['rgba(245,230,168,0.3)', 'rgba(126,232,160,0.2)', 'rgba(255,255,255,0.3)'];
     this.particles.push(new Particle(
       Math.random() * w, Math.random() * h,
-      (Math.random() - 0.5) * 6, -2 - Math.random() * 5,
-      1 + Math.random(), colors[Math.floor(Math.random() * colors.length)],
-      2 + Math.random() * 2
+      (Math.random() - 0.5) * 4, -2 - Math.random() * 3,
+      1 + Math.random(),
+      colors[Math.floor(Math.random() * colors.length)],
+      3 + Math.random() * 2
     ));
   }
 

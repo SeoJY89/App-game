@@ -12,7 +12,7 @@ class AudioManager {
     } catch (e) {}
   }
 
-  _tone(freq, dur, type = 'sine', vol = 0.1, delay = 0) {
+  _tone(freq, dur, type = 'sine', vol = 0.08, delay = 0) {
     if (!this.ctx) return;
     const t = this.ctx.currentTime + delay;
     const o = this.ctx.createOscillator();
@@ -27,43 +27,26 @@ class AudioManager {
     o.stop(t + dur);
   }
 
-  playPickup() {
-    this._tone(400, 0.08, 'sine', 0.08);
+  playStart() {
+    this._tone(440, 0.15, 'sine', 0.08);
   }
 
-  playDrop() {
-    this._tone(300, 0.1, 'triangle', 0.06);
+  playMove() {
+    this._tone(600, 0.04, 'sine', 0.03);
   }
 
-  playCorrect() {
-    this._tone(523, 0.12, 'sine', 0.1);
-    this._tone(659, 0.12, 'sine', 0.1, 0.08);
-    this._tone(784, 0.18, 'sine', 0.12, 0.16);
-  }
-
-  playWrong() {
-    this._tone(200, 0.2, 'sawtooth', 0.06);
-    this._tone(180, 0.25, 'sawtooth', 0.04, 0.1);
-  }
-
-  playHint() {
-    this._tone(600, 0.15, 'sine', 0.08);
-    this._tone(800, 0.1, 'sine', 0.06, 0.1);
-  }
-
-  playKeypress() {
-    this._tone(500, 0.05, 'sine', 0.04);
-  }
-
-  playStageClear() {
+  playSolved() {
     [523, 659, 784, 1047].forEach((f, i) =>
-      this._tone(f, 0.2, 'sine', 0.1, i * 0.1)
+      this._tone(f, 0.3, 'sine', 0.1, i * 0.1)
     );
   }
 
-  playAllHints() {
-    this._tone(440, 0.15, 'sine', 0.08);
-    this._tone(550, 0.15, 'sine', 0.08, 0.1);
-    this._tone(660, 0.2, 'sine', 0.1, 0.2);
+  playFailed() {
+    this._tone(250, 0.2, 'sawtooth', 0.06);
+    this._tone(200, 0.3, 'sawtooth', 0.05, 0.1);
+  }
+
+  playButton() {
+    this._tone(500, 0.08, 'sine', 0.06);
   }
 }
