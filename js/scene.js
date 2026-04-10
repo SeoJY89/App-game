@@ -18,72 +18,15 @@ class Scene extends PIXI.Container {
     const w = this.gameWidth;
     const h = this.gameHeight;
 
-    // Parse background colors
-    const top = this._parseColor(this.data.bgTop || '#2a1a30');
-    const bottom = this._parseColor(this.data.bgBottom || '#0a0510');
-
-    // Use canvas-drawn gradient texture for quality
+    // Use canvas for detailed theme-specific room rendering
     const canvas = document.createElement('canvas');
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext('2d');
 
-    const grad = ctx.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0, this.data.bgTop || '#2a1a30');
-    grad.addColorStop(1, this.data.bgBottom || '#0a0510');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, w, h);
-
-    // Add noise/texture
-    const imgData = ctx.getImageData(0, 0, w, h);
-    const d = imgData.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const n = (Math.random() - 0.5) * 18;
-      d[i] = Math.max(0, Math.min(255, d[i] + n));
-      d[i+1] = Math.max(0, Math.min(255, d[i+1] + n));
-      d[i+2] = Math.max(0, Math.min(255, d[i+2] + n));
-    }
-    ctx.putImageData(imgData, 0, 0);
-
-    // Wall panel stripes (subtle horizontal lines for wood/wall texture)
-    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-    ctx.lineWidth = 1;
-    for (let y = 0; y < h; y += 30) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(w, y);
-      ctx.stroke();
-    }
-
-    // Vignette
-    const vg = ctx.createRadialGradient(w/2, h/2, w/4, w/2, h/2, w);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(0,0,0,0.65)');
-    ctx.fillStyle = vg;
-    ctx.fillRect(0, 0, w, h);
-
-    // Ambient lighting (warm glow from top)
-    const lg = ctx.createRadialGradient(w * 0.5, h * 0.25, 20, w * 0.5, h * 0.25, w * 0.9);
-    lg.addColorStop(0, 'rgba(212,149,106,0.25)');
-    lg.addColorStop(0.4, 'rgba(212,149,106,0.08)');
-    lg.addColorStop(1, 'rgba(212,149,106,0)');
-    ctx.fillStyle = lg;
-    ctx.fillRect(0, 0, w, h);
-
-    // Floor suggestion - darker band at bottom
-    const fg = ctx.createLinearGradient(0, h * 0.75, 0, h);
-    fg.addColorStop(0, 'rgba(0,0,0,0)');
-    fg.addColorStop(1, 'rgba(0,0,0,0.6)');
-    ctx.fillStyle = fg;
-    ctx.fillRect(0, h * 0.75, w, h * 0.25);
-
-    // Horizon line (subtle)
-    ctx.strokeStyle = 'rgba(212,149,106,0.1)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, h * 0.68);
-    ctx.lineTo(w, h * 0.68);
-    ctx.stroke();
+    // Dispatch to the theme-specific background renderer
+    const theme = this.data.theme || 'study';
+    Backgrounds.render(ctx, w, h, theme);
 
     const texture = PIXI.Texture.from(canvas);
     const bg = new PIXI.Sprite(texture);

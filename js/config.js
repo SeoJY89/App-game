@@ -38,6 +38,7 @@ const CONFIG = {
     {
       id: 1,
       title: '교수의 서재',
+      theme: 'study',
       bgTop: '#3a2a40',
       bgBottom: '#0f0518',
       intro: '문이 잠겼다. 탈출할 방법을 찾아라.',
@@ -121,6 +122,7 @@ const CONFIG = {
     {
       id: 2,
       title: '낡은 침실',
+      theme: 'bedroom',
       bgTop: '#2a1a2e',
       bgBottom: '#0a0510',
       intro: '방은 먼지로 덮여 있다. 뭔가 숨겨져 있을 것이다.',
@@ -216,6 +218,7 @@ const CONFIG = {
     {
       id: 3,
       title: '비밀의 실험실',
+      theme: 'lab',
       bgTop: '#1a2a3a',
       bgBottom: '#050a15',
       intro: '누군가의 실험실. 도구를 조합해야 할 것 같다.',
@@ -343,6 +346,7 @@ const CONFIG = {
     {
       id: 4,
       title: '잊혀진 도서관',
+      theme: 'library',
       bgTop: '#2a1f15',
       bgBottom: '#0a0505',
       intro: '먼지 쌓인 도서관. 책들 사이에 단서가 있다.',
@@ -449,6 +453,7 @@ const CONFIG = {
     {
       id: 5,
       title: '최후의 방',
+      theme: 'final',
       bgTop: '#25152a',
       bgBottom: '#050008',
       intro: '이것이 마지막 방이다. 모든 것을 걸어야 한다.',
