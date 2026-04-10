@@ -27,26 +27,37 @@ class AudioManager {
     o.stop(t + dur);
   }
 
-  playStart() {
-    this._tone(440, 0.15, 'sine', 0.08);
+  playTap() {
+    this._tone(450, 0.08, 'sine', 0.06);
   }
 
-  playMove() {
-    this._tone(600, 0.04, 'sine', 0.03);
-  }
-
-  playSolved() {
-    [523, 659, 784, 1047].forEach((f, i) =>
-      this._tone(f, 0.3, 'sine', 0.1, i * 0.1)
-    );
-  }
-
-  playFailed() {
-    this._tone(250, 0.2, 'sawtooth', 0.06);
-    this._tone(200, 0.3, 'sawtooth', 0.05, 0.1);
+  playKey() {
+    this._tone(600, 0.05, 'sine', 0.05);
   }
 
   playButton() {
-    this._tone(500, 0.08, 'sine', 0.06);
+    this._tone(500, 0.1, 'sine', 0.06);
+  }
+
+  playCorrect() {
+    [523, 659, 784, 1047].forEach((f, i) =>
+      this._tone(f, 0.25, 'sine', 0.08, i * 0.08)
+    );
+  }
+
+  playWrong() {
+    this._tone(220, 0.2, 'sawtooth', 0.07);
+    this._tone(180, 0.25, 'sawtooth', 0.05, 0.1);
+  }
+
+  playItem() {
+    this._tone(700, 0.1, 'sine', 0.06);
+    this._tone(900, 0.15, 'sine', 0.05, 0.08);
+  }
+
+  playEscape() {
+    [400, 500, 600, 800, 1000, 1200].forEach((f, i) =>
+      this._tone(f, 0.3, 'sine', 0.1, i * 0.12)
+    );
   }
 }

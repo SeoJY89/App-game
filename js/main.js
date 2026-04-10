@@ -1,4 +1,4 @@
-const State = { MENU: 0, PLAYING: 1 };
+const State = { MENU: 0, PLAYING: 1, COMPLETE: 2 };
 
 class Game {
   constructor() {
@@ -7,19 +7,23 @@ class Game {
     this.audio = new AudioManager();
     this.particles = new ParticleSystem();
     this.ui = new UI();
+    this.popup = new PopupManager(this.audio);
+    this.inventory = new Inventory();
 
     this.state = State.MENU;
     this.scale = 1;
     this.lastTime = 0;
-    this.sparkleTimer = 0;
+    this.dustTimer = 0;
 
-    this.currentIdx = 0;
-    this.puzzle = null;
+    this.currentStageIdx = 0;
+    this.scene = null;
+    this.flags = new Set();
 
     this.menuRects = {};
-    this.footerRects = {};
+    this.headerRects = {};
+    this.completeRects = {};
 
-    this.maxUnlocked = parseInt(localStorage.getItem('theLineProgress')) || 1;
+    this.maxUnlocked = parseInt(localStorage.getItem('escapeProgress')) || 1;
 
     this._setupCanvas();
     this._setupEvents();
@@ -27,6 +31,32 @@ class Game {
     document.fonts.ready.then(() => {
       requestAnimationFrame(t => this._loop(t));
     });
+  }
+
+  // === Game state API used by stage handlers ===
+  addItem(item) {
+    this.inventory.add(item);
+    this.audio.playItem();
+  }
+
+  removeItem(id) {
+    this.inventory.remove(id);
+  }
+
+  hasItem(id) {
+    return this.inventory.has(id);
+  }
+
+  markStageComplete() {
+    this.state = State.COMPLETE;
+    this.particles.emitEscape(CONFIG.CANVAS.WIDTH / 2, CONFIG.CANVAS.HEIGHT / 2);
+    this.audio.playEscape();
+
+    const next = this.currentStageIdx + 2;
+    if (next > this.maxUnlocked) {
+      this.maxUnlocked = next;
+      localStorage.setItem('escapeProgress', this.maxUnlocked.toString());
+    }
   }
 
   _setupCanvas() {
@@ -61,114 +91,116 @@ class Game {
       e.preventDefault();
       this.audio.init();
       const p = this._getPos(e);
-      this._onDown(p.x, p.y);
+      this._onClick(p.x, p.y);
     }, { passive: false });
-
-    this.canvas.addEventListener('pointermove', e => {
-      e.preventDefault();
-      const p = this._getPos(e);
-      this._onMove(p.x, p.y);
-    }, { passive: false });
-
-    this.canvas.addEventListener('pointerup', e => {
-      e.preventDefault();
-      const p = this._getPos(e);
-      this._onUp(p.x, p.y);
-    }, { passive: false });
-
-    this.canvas.addEventListener('pointercancel', () => {
-      if (this.puzzle && this.puzzle.drawing) {
-        this.puzzle.endDraw();
-      }
-    });
   }
 
-  _loadPuzzle(idx) {
-    if (idx >= CONFIG.PUZZLES.length) {
+  _startStage(idx) {
+    if (idx >= CONFIG.STAGES.length) {
       this.state = State.MENU;
       return;
     }
-    this.currentIdx = idx;
-    this.puzzle = new Puzzle(CONFIG.PUZZLES[idx]);
+    this.currentStageIdx = idx;
+    const stageData = CONFIG.STAGES[idx];
+    this.scene = new Scene(stageData);
+    this.flags = new Set();
+    this.inventory.clear();
     this.state = State.PLAYING;
+    this.popup.close();
+
+    // Show intro
+    if (stageData.intro) {
+      this.popup.showMessage(stageData.intro);
+    }
   }
 
-  _onDown(x, y) {
+  _onClick(x, y) {
     if (this.state === State.MENU) {
       const btn = this.menuRects.playBtn;
       if (btn && this._hit(x, y, btn)) {
-        this._loadPuzzle(Math.min(this.maxUnlocked - 1, CONFIG.PUZZLES.length - 1));
+        this._startStage(Math.min(this.maxUnlocked - 1, CONFIG.STAGES.length - 1));
         this.audio.playButton();
       }
       return;
     }
 
-    // PLAYING
-    if (!this.puzzle) return;
-
-    // check buttons
-    if (this.puzzle.completed) {
-      const nb = this.footerRects.nextBtn;
-      if (nb && this._hit(x, y, nb)) {
-        if (this.currentIdx + 1 >= CONFIG.PUZZLES.length) {
+    if (this.state === State.COMPLETE) {
+      const btn = this.completeRects.nextBtn;
+      if (btn && this._hit(x, y, btn)) {
+        const isLast = this.currentStageIdx + 1 >= CONFIG.STAGES.length;
+        if (isLast) {
           this.state = State.MENU;
         } else {
-          this._loadPuzzle(this.currentIdx + 1);
+          this._startStage(this.currentStageIdx + 1);
         }
         this.audio.playButton();
       }
       return;
     }
 
-    const rb = this.footerRects.resetBtn;
-    if (rb && this._hit(x, y, rb)) {
-      this.puzzle.path = [];
-      this.puzzle.drawing = false;
-      this.audio.playButton();
+    // PLAYING state
+
+    // popup takes priority
+    if (this.popup.isOpen()) {
+      this.popup.handleClick(x, y, this);
       return;
     }
 
-    const mb = this.footerRects.menuBtn;
-    if (mb && this._hit(x, y, mb)) {
+    // header menu button
+    if (this.headerRects.menuBtn && this._hit(x, y, this.headerRects.menuBtn)) {
       this.state = State.MENU;
       this.audio.playButton();
       return;
     }
 
-    // start drawing if pressed on start node
-    if (this.puzzle.hitStart(x, y)) {
-      this.puzzle.startDraw();
-      this.audio.playStart();
+    // inventory click
+    const invHit = this.inventory.hitTest(x, y);
+    if (invHit) {
+      this.inventory.toggleSelect(invHit);
+      this.audio.playTap();
+      return;
     }
-  }
 
-  _onMove(x, y) {
-    if (this.state !== State.PLAYING || !this.puzzle) return;
-    if (!this.puzzle.drawing) return;
-    const prevLen = this.puzzle.path.length;
-    this.puzzle.tryMove(x, y);
-    if (this.puzzle.path.length !== prevLen) {
-      this.audio.playMove();
-    }
-  }
+    // hotspot click
+    if (!this.scene) return;
+    const hs = this.scene.hitTest(x, y);
+    if (!hs) return;
 
-  _onUp(x, y) {
-    if (this.state !== State.PLAYING || !this.puzzle) return;
-    if (!this.puzzle.drawing) return;
+    this.audio.playTap();
 
-    const result = this.puzzle.endDraw();
-    if (result === 'solved') {
-      this.audio.playSolved();
-      const p = this.puzzle.nodeToScreen(this.puzzle.data.end.col, this.puzzle.data.end.row);
-      this.particles.emitSolved(p.x, p.y);
-      // unlock next
-      const nextProgress = this.currentIdx + 2;
-      if (nextProgress > this.maxUnlocked) {
-        this.maxUnlocked = nextProgress;
-        localStorage.setItem('theLineProgress', this.maxUnlocked.toString());
+    // Check item usage first
+    if (this.inventory.selected && hs.onUseItem) {
+      const result = hs.onUseItem(this, this.inventory.selected);
+      if (result) {
+        this.inventory.selected = null;
+        this._processResult(result);
+        return;
       }
-    } else if (result === 'failed') {
-      this.audio.playFailed();
+    }
+
+    // Normal tap
+    if (hs.onTap) {
+      const result = hs.onTap(this);
+      if (result) this._processResult(result);
+    }
+  }
+
+  _processResult(result) {
+    if (result.msg && result.popup) {
+      // First show popup then message
+      this.popup.showPopup(result.popup, result.onCorrect);
+      return;
+    }
+    if (result.popup) {
+      this.popup.showPopup(result.popup, result.onCorrect);
+      return;
+    }
+    if (result.msg) {
+      this.popup.showMessage(result.msg, result.complete ? () => this.markStageComplete() : null);
+      return;
+    }
+    if (result.complete) {
+      this.markStageComplete();
     }
   }
 
@@ -179,16 +211,17 @@ class Game {
   _update(dt) {
     this.ui.update(dt);
     this.particles.update(dt);
+    this.popup.update(dt);
 
-    this.sparkleTimer += dt;
-    if (this.sparkleTimer > 0.4) {
-      this.sparkleTimer = 0;
-      this.particles.emitAmbient(CONFIG.CANVAS.WIDTH, CONFIG.CANVAS.HEIGHT);
+    this.dustTimer += dt;
+    if (this.dustTimer > 0.3) {
+      this.dustTimer = 0;
+      if (this.state === State.PLAYING) {
+        this.particles.emitDust(CONFIG.CANVAS.WIDTH, CONFIG.LAYOUT.sceneBottom);
+      }
     }
 
-    if (this.state === State.PLAYING && this.puzzle) {
-      this.puzzle.update(dt);
-    }
+    if (this.scene) this.scene.update(dt);
   }
 
   _draw() {
@@ -199,21 +232,29 @@ class Game {
     ctx.save();
     ctx.scale(this.scale, this.scale);
 
-    // bg gradient
-    const grad = ctx.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0, CONFIG.COLORS.bgTop);
-    grad.addColorStop(1, CONFIG.COLORS.bgBottom);
-    ctx.fillStyle = grad;
+    // base background
+    ctx.fillStyle = '#0a0510';
     ctx.fillRect(0, 0, w, h);
-
-    this.particles.draw(ctx);
 
     if (this.state === State.MENU) {
       this.menuRects = this.ui.drawMenu(ctx, w, h, this.maxUnlocked) || {};
-    } else if (this.state === State.PLAYING && this.puzzle) {
-      this.ui.drawHeader(ctx, this.puzzle, CONFIG.PUZZLES.length);
-      this.puzzle.draw(ctx);
-      this.footerRects = this.ui.drawFooter(ctx, this.puzzle) || {};
+    } else if (this.state === State.PLAYING || this.state === State.COMPLETE) {
+      if (this.scene) {
+        this.scene.draw(ctx);
+        this.particles.draw(ctx);
+      }
+      if (this.scene) {
+        this.headerRects = this.ui.drawHeader(ctx, this.scene.data, this.currentStageIdx + 1, CONFIG.STAGES.length);
+      }
+      this.inventory.draw(ctx);
+
+      // popup on top
+      this.popup.draw(ctx);
+
+      if (this.state === State.COMPLETE && !this.popup.isOpen()) {
+        const isLast = this.currentStageIdx + 1 >= CONFIG.STAGES.length;
+        this.completeRects = this.ui.drawStageComplete(ctx, w, h, this.currentStageIdx + 1, isLast) || {};
+      }
     }
 
     ctx.restore();

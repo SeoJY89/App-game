@@ -25,28 +25,27 @@ class Particle {
 class ParticleSystem {
   constructor() { this.particles = []; }
 
-  emitSolved(x, y) {
-    const colors = ['#7ee8a0', '#f5e6a8', '#FFFFFF'];
-    for (let i = 0; i < 20; i++) {
-      const angle = (Math.PI * 2 * i) / 20;
-      const spd = 80 + Math.random() * 60;
+  emitEscape(x, y) {
+    const colors = ['#d4956a', '#f5e6a8', '#FFFFFF', '#7ee8a0'];
+    for (let i = 0; i < 25; i++) {
+      const angle = (Math.PI * 2 * i) / 25;
+      const spd = 80 + Math.random() * 80;
       this.particles.push(new Particle(
-        x, y, Math.cos(angle) * spd, Math.sin(angle) * spd - 30,
+        x, y, Math.cos(angle) * spd, Math.sin(angle) * spd - 40,
         3 + Math.random() * 3,
         colors[Math.floor(Math.random() * colors.length)],
-        0.8 + Math.random() * 0.4
+        0.9 + Math.random() * 0.4
       ));
     }
   }
 
-  emitAmbient(w, h) {
-    if (this.particles.length > 30) return;
-    const colors = ['rgba(245,230,168,0.3)', 'rgba(126,232,160,0.2)', 'rgba(255,255,255,0.3)'];
+  emitDust(w, h) {
+    if (this.particles.length > 40) return;
     this.particles.push(new Particle(
       Math.random() * w, Math.random() * h,
-      (Math.random() - 0.5) * 4, -2 - Math.random() * 3,
-      1 + Math.random(),
-      colors[Math.floor(Math.random() * colors.length)],
+      (Math.random() - 0.5) * 4, -1 - Math.random() * 3,
+      0.8 + Math.random(),
+      'rgba(255,255,255,0.15)',
       3 + Math.random() * 2
     ));
   }
