@@ -2,178 +2,234 @@ const State = { MENU: 0, PLAYING: 1, COMPLETE: 2 };
 
 class Game {
   constructor() {
-    this.canvas = document.getElementById('gameCanvas');
-    this.ctx = this.canvas.getContext('2d');
+    const W = CONFIG.CANVAS.WIDTH;
+    const H = CONFIG.CANVAS.HEIGHT;
+
+    // Create PIXI application
+    this.app = new PIXI.Application({
+      width: W,
+      height: H,
+      backgroundColor: 0x0a0510,
+      antialias: true,
+      resolution: window.devicePixelRatio || 1,
+      autoDensity: true
+    });
+
+    this.mountEl = document.getElementById('pixi-mount');
+    this.overlayEl = document.getElementById('ui-overlay');
+    this.mountEl.appendChild(this.app.view);
+
+    // Game state
     this.audio = new AudioManager();
-    this.particles = new ParticleSystem();
-    this.ui = new UI();
-    this.popup = new PopupManager(this.audio);
-    this.inventory = new Inventory();
+    this.ui = new UI(this, this.overlayEl);
 
     this.state = State.MENU;
-    this.scale = 1;
-    this.lastTime = 0;
-    this.dustTimer = 0;
-
     this.currentStageIdx = 0;
     this.scene = null;
     this.flags = new Set();
-
-    this.menuRects = {};
-    this.headerRects = {};
-    this.completeRects = {};
+    this.inventory = [];
+    this.selectedItem = null;
 
     this.maxUnlocked = parseInt(localStorage.getItem('escapeProgress')) || 1;
 
-    this._setupCanvas();
-    this._setupEvents();
+    // Setup scaling
+    this._setupScaling();
 
-    document.fonts.ready.then(() => {
-      requestAnimationFrame(t => this._loop(t));
-    });
+    // Setup PIXI stage interactivity
+    this.app.stage.eventMode = 'static';
+    this.app.stage.hitArea = this.app.screen;
+    this.app.stage.on('pointerdown', (e) => this._onStagePointerDown(e));
+
+    // Start ticker
+    this.app.ticker.add((dt) => this._update(dt / 60));
+
+    // Show menu
+    this._showMenu();
   }
 
-  // === Game state API used by stage handlers ===
+  _setupScaling() {
+    const W = CONFIG.CANVAS.WIDTH;
+    const H = CONFIG.CANVAS.HEIGHT;
+    const gameEl = document.getElementById('game');
+
+    const resize = () => {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const targetRatio = W / H;
+      const screenRatio = vw / vh;
+
+      let scale;
+      if (screenRatio > targetRatio) {
+        scale = vh / H;
+      } else {
+        scale = vw / W;
+      }
+
+      gameEl.style.transform = `scale(${scale})`;
+      gameEl.style.transformOrigin = 'center center';
+    };
+    window.addEventListener('resize', resize);
+    window.addEventListener('orientationchange', resize);
+    resize();
+  }
+
+  // ============ Game state API ============
   addItem(item) {
-    this.inventory.add(item);
+    this.inventory.push(item);
     this.audio.playItem();
+    this.ui.refreshInventory();
   }
 
   removeItem(id) {
-    this.inventory.remove(id);
+    const idx = this.inventory.findIndex(i => i.id === id);
+    if (idx >= 0) this.inventory.splice(idx, 1);
+    if (this.selectedItem === id) this.selectedItem = null;
+    this.ui.refreshInventory();
   }
 
   hasItem(id) {
-    return this.inventory.has(id);
+    return this.inventory.some(i => i.id === id);
+  }
+
+  toggleItemSelection(id) {
+    this.selectedItem = this.selectedItem === id ? null : id;
+    this.ui.refreshInventory();
+  }
+
+  // ============ Menu / Stage control ============
+  _showMenu() {
+    this.state = State.MENU;
+    if (this.scene) {
+      this.app.stage.removeChild(this.scene);
+      this.scene.destroy();
+      this.scene = null;
+    }
+    this.ui.showMenu(this.maxUnlocked);
+  }
+
+  backToMenu() {
+    this._showMenu();
+  }
+
+  startStage(idx) {
+    if (idx >= CONFIG.STAGES.length) {
+      this._showMenu();
+      return;
+    }
+
+    // Clear old scene
+    if (this.scene) {
+      this.app.stage.removeChild(this.scene);
+      this.scene.destroy();
+    }
+
+    this.currentStageIdx = idx;
+    const stageData = CONFIG.STAGES[idx];
+
+    // Create new scene
+    this.scene = new Scene(stageData, CONFIG.CANVAS.WIDTH, CONFIG.CANVAS.HEIGHT);
+    this.app.stage.addChildAt(this.scene, 0);
+
+    // Reset state
+    this.flags = new Set();
+    this.inventory = [];
+    this.selectedItem = null;
+
+    this.state = State.PLAYING;
+    this.ui.showGameUI(stageData, idx + 1, CONFIG.STAGES.length);
+
+    // Show intro
+    if (stageData.intro) {
+      this.ui.showMessage(stageData.intro);
+    }
   }
 
   markStageComplete() {
     this.state = State.COMPLETE;
-    this.particles.emitEscape(CONFIG.CANVAS.WIDTH / 2, CONFIG.CANVAS.HEIGHT / 2);
     this.audio.playEscape();
+
+    // Particle burst via GSAP + PIXI
+    if (this.scene) {
+      this._emitEscapeParticles();
+    }
 
     const next = this.currentStageIdx + 2;
     if (next > this.maxUnlocked) {
       this.maxUnlocked = next;
       localStorage.setItem('escapeProgress', this.maxUnlocked.toString());
     }
-  }
 
-  _setupCanvas() {
-    const resize = () => {
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const ratio = CONFIG.CANVAS.WIDTH / CONFIG.CANVAS.HEIGHT;
-      const sr = vw / vh;
-      if (sr > ratio) {
-        this.canvas.height = vh;
-        this.canvas.width = vh * ratio;
-      } else {
-        this.canvas.width = vw;
-        this.canvas.height = vw / ratio;
-      }
-      this.scale = this.canvas.width / CONFIG.CANVAS.WIDTH;
-    };
-    window.addEventListener('resize', resize);
-    resize();
-  }
-
-  _getPos(e) {
-    const r = this.canvas.getBoundingClientRect();
-    return {
-      x: (e.clientX - r.left) / this.scale,
-      y: (e.clientY - r.top) / this.scale
-    };
-  }
-
-  _setupEvents() {
-    this.canvas.addEventListener('pointerdown', e => {
-      e.preventDefault();
-      this.audio.init();
-      const p = this._getPos(e);
-      this._onClick(p.x, p.y);
-    }, { passive: false });
-  }
-
-  _startStage(idx) {
-    if (idx >= CONFIG.STAGES.length) {
-      this.state = State.MENU;
-      return;
-    }
-    this.currentStageIdx = idx;
-    const stageData = CONFIG.STAGES[idx];
-    this.scene = new Scene(stageData);
-    this.flags = new Set();
-    this.inventory.clear();
-    this.state = State.PLAYING;
-    this.popup.close();
-
-    // Show intro
-    if (stageData.intro) {
-      this.popup.showMessage(stageData.intro);
-    }
-  }
-
-  _onClick(x, y) {
-    if (this.state === State.MENU) {
-      const btn = this.menuRects.playBtn;
-      if (btn && this._hit(x, y, btn)) {
-        this._startStage(Math.min(this.maxUnlocked - 1, CONFIG.STAGES.length - 1));
-        this.audio.playButton();
-      }
-      return;
-    }
-
-    if (this.state === State.COMPLETE) {
-      const btn = this.completeRects.nextBtn;
-      if (btn && this._hit(x, y, btn)) {
-        const isLast = this.currentStageIdx + 1 >= CONFIG.STAGES.length;
+    const isLast = this.currentStageIdx + 1 >= CONFIG.STAGES.length;
+    setTimeout(() => {
+      this.ui.showStageComplete(this.currentStageIdx + 1, isLast, () => {
         if (isLast) {
-          this.state = State.MENU;
+          this._showMenu();
         } else {
-          this._startStage(this.currentStageIdx + 1);
+          this.startStage(this.currentStageIdx + 1);
         }
-        this.audio.playButton();
+      });
+    }, 800);
+  }
+
+  _emitEscapeParticles() {
+    const W = CONFIG.CANVAS.WIDTH;
+    const H = CONFIG.CANVAS.HEIGHT;
+    const container = new PIXI.Container();
+    this.app.stage.addChild(container);
+
+    for (let i = 0; i < 40; i++) {
+      const p = new PIXI.Graphics();
+      const colors = [0xf5e6a8, 0xd4956a, 0xffffff, 0x7ee8a0];
+      p.beginFill(colors[Math.floor(Math.random() * colors.length)]);
+      p.drawCircle(0, 0, 2 + Math.random() * 4);
+      p.endFill();
+      p.x = W / 2;
+      p.y = H / 2;
+      container.addChild(p);
+
+      const angle = (Math.PI * 2 * i) / 40;
+      const dist = 150 + Math.random() * 150;
+      if (typeof gsap !== 'undefined') {
+        gsap.to(p, {
+          x: W / 2 + Math.cos(angle) * dist,
+          y: H / 2 + Math.sin(angle) * dist,
+          alpha: 0,
+          duration: 1.2 + Math.random() * 0.5,
+          ease: 'power2.out',
+          onComplete: () => p.destroy()
+        });
       }
-      return;
     }
 
-    // PLAYING state
+    setTimeout(() => {
+      this.app.stage.removeChild(container);
+      container.destroy();
+    }, 2000);
+  }
 
-    // popup takes priority
-    if (this.popup.isOpen()) {
-      this.popup.handleClick(x, y, this);
-      return;
-    }
+  // ============ Input handling ============
+  _onStagePointerDown(e) {
+    if (this.state !== State.PLAYING) return;
+    if (this.ui.isPopupOpen()) return;
 
-    // header menu button
-    if (this.headerRects.menuBtn && this._hit(x, y, this.headerRects.menuBtn)) {
-      this.state = State.MENU;
-      this.audio.playButton();
-      return;
-    }
-
-    // inventory click
-    const invHit = this.inventory.hitTest(x, y);
-    if (invHit) {
-      this.inventory.toggleSelect(invHit);
-      this.audio.playTap();
-      return;
-    }
-
-    // hotspot click
-    if (!this.scene) return;
-    const hs = this.scene.hitTest(x, y);
+    const pos = e.global;
+    const hs = this.scene ? this.scene.hitTest(pos.x, pos.y) : null;
     if (!hs) return;
 
     this.audio.playTap();
 
-    // Check item usage first
-    if (this.inventory.selected && hs.onUseItem) {
-      const result = hs.onUseItem(this, this.inventory.selected);
+    // Pulse animation
+    if (this.scene.pulseHotspot) {
+      this.scene.pulseHotspot(hs.id);
+    }
+
+    // Try item use first
+    if (this.selectedItem && hs.onUseItem) {
+      const result = hs.onUseItem(this, this.selectedItem);
       if (result) {
-        this.inventory.selected = null;
-        this._processResult(result);
+        this.selectedItem = null;
+        this.ui.refreshInventory();
+        this.processResult(result);
         return;
       }
     }
@@ -181,92 +237,47 @@ class Game {
     // Normal tap
     if (hs.onTap) {
       const result = hs.onTap(this);
-      if (result) this._processResult(result);
+      if (result) this.processResult(result);
     }
   }
 
-  _processResult(result) {
-    if (result.msg && result.popup) {
-      // First show popup then message
-      this.popup.showPopup(result.popup, result.onCorrect);
-      return;
-    }
+  processResult(result) {
+    if (!result) return;
+
+    const complete = result.complete;
+
     if (result.popup) {
-      this.popup.showPopup(result.popup, result.onCorrect);
+      const popup = result.popup;
+      const onCorrect = result.onCorrect;
+
+      if (popup.type === 'info') {
+        this.ui.showInfo(popup.title, popup.text);
+      } else if (popup.type === 'books') {
+        this.ui.showBooks(popup.title, popup.books);
+      } else if (popup.type === 'keypad') {
+        this.ui.showKeypad(popup.title, popup.length, popup.answer, popup.hint, onCorrect);
+      }
       return;
     }
+
     if (result.msg) {
-      this.popup.showMessage(result.msg, result.complete ? () => this.markStageComplete() : null);
+      this.ui.showMessage(result.msg, complete ? () => this.markStageComplete() : null);
       return;
     }
-    if (result.complete) {
+
+    if (complete) {
       this.markStageComplete();
     }
   }
 
-  _hit(x, y, r) {
-    return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
-  }
-
   _update(dt) {
-    this.ui.update(dt);
-    this.particles.update(dt);
-    this.popup.update(dt);
-
-    this.dustTimer += dt;
-    if (this.dustTimer > 0.3) {
-      this.dustTimer = 0;
-      if (this.state === State.PLAYING) {
-        this.particles.emitDust(CONFIG.CANVAS.WIDTH, CONFIG.LAYOUT.sceneBottom);
-      }
+    if (this.scene) {
+      this.scene.update(dt);
     }
-
-    if (this.scene) this.scene.update(dt);
-  }
-
-  _draw() {
-    const ctx = this.ctx;
-    const w = CONFIG.CANVAS.WIDTH;
-    const h = CONFIG.CANVAS.HEIGHT;
-
-    ctx.save();
-    ctx.scale(this.scale, this.scale);
-
-    // base background
-    ctx.fillStyle = '#0a0510';
-    ctx.fillRect(0, 0, w, h);
-
-    if (this.state === State.MENU) {
-      this.menuRects = this.ui.drawMenu(ctx, w, h, this.maxUnlocked) || {};
-    } else if (this.state === State.PLAYING || this.state === State.COMPLETE) {
-      if (this.scene) {
-        this.scene.draw(ctx);
-        this.particles.draw(ctx);
-      }
-      if (this.scene) {
-        this.headerRects = this.ui.drawHeader(ctx, this.scene.data, this.currentStageIdx + 1, CONFIG.STAGES.length);
-      }
-      this.inventory.draw(ctx);
-
-      // popup on top
-      this.popup.draw(ctx);
-
-      if (this.state === State.COMPLETE && !this.popup.isOpen()) {
-        const isLast = this.currentStageIdx + 1 >= CONFIG.STAGES.length;
-        this.completeRects = this.ui.drawStageComplete(ctx, w, h, this.currentStageIdx + 1, isLast) || {};
-      }
-    }
-
-    ctx.restore();
-  }
-
-  _loop(timestamp) {
-    const dt = Math.min((timestamp - this.lastTime) / 1000, 0.05);
-    this.lastTime = timestamp;
-    this._update(dt);
-    this._draw();
-    requestAnimationFrame(t => this._loop(t));
   }
 }
 
-window.addEventListener('DOMContentLoaded', () => new Game());
+// Wait for fonts then start
+document.fonts.ready.then(() => {
+  new Game();
+});

@@ -44,7 +44,7 @@ const CONFIG = {
       hotspots: [
         {
           id: 'painting', x: 0.22, y: 0.2, size: 62,
-          icon: '🖼️', label: '그림',
+          iconType: 'painting', label: '그림',
           onTap: (g) => {
             if (!g.flags.has('p1')) {
               g.flags.add('p1');
@@ -59,14 +59,14 @@ const CONFIG = {
         },
         {
           id: 'clock', x: 0.78, y: 0.2, size: 58,
-          icon: '🕰️', label: '시계',
+          iconType: 'clock', label: '시계',
           onTap: (g) => ({
             popup: { type: 'info', title: '벽시계', text: '시계 바늘이 멈춰 있다.\n시각: 09:42' }
           })
         },
         {
           id: 'books', x: 0.18, y: 0.52, size: 62,
-          icon: '📚', label: '책장',
+          iconType: 'bookshelf', label: '책장',
           onTap: (g) => ({
             popup: {
               type: 'books',
@@ -82,7 +82,7 @@ const CONFIG = {
         },
         {
           id: 'drawer', x: 0.5, y: 0.56, size: 62,
-          icon: '🗄️', label: '서랍',
+          iconType: 'drawer', label: '서랍',
           onTap: (g) => {
             if (g.flags.has('drawer_open')) {
               return { msg: '서랍은 비어 있다.' };
@@ -105,7 +105,7 @@ const CONFIG = {
         },
         {
           id: 'door', x: 0.82, y: 0.58, size: 70,
-          icon: '🚪', label: '문',
+          iconType: 'door', label: '문',
           onTap: (g) => {
             if (g.hasItem('key')) {
               g.removeItem('key');
@@ -127,7 +127,7 @@ const CONFIG = {
       hotspots: [
         {
           id: 'bed', x: 0.25, y: 0.25, size: 66,
-          icon: '🛏️', label: '침대',
+          iconType: 'bed', label: '침대',
           onTap: (g) => {
             if (!g.flags.has('bed_1')) {
               g.flags.add('bed_1');
@@ -143,7 +143,7 @@ const CONFIG = {
         },
         {
           id: 'mirror', x: 0.75, y: 0.22, size: 62,
-          icon: '🪞', label: '거울',
+          iconType: 'mirror', label: '거울',
           onTap: (g) => ({
             popup: {
               type: 'info',
@@ -154,7 +154,7 @@ const CONFIG = {
         },
         {
           id: 'diary', x: 0.2, y: 0.56, size: 60,
-          icon: '📓', label: '일기장',
+          iconType: 'diary', label: '일기장',
           onTap: (g) => ({
             popup: {
               type: 'info',
@@ -165,7 +165,7 @@ const CONFIG = {
         },
         {
           id: 'box', x: 0.5, y: 0.58, size: 62,
-          icon: '🎁', label: '보석함',
+          iconType: 'box', label: '보석함',
           onTap: (g) => {
             if (g.flags.has('box_open')) {
               return { msg: '보석함은 비어 있다.' };
@@ -189,7 +189,7 @@ const CONFIG = {
         },
         {
           id: 'door', x: 0.82, y: 0.58, size: 70,
-          icon: '🚪', label: '문',
+          iconType: 'door', label: '문',
           onTap: (g) => {
             if (g.flags.has('door_open')) {
               return { complete: true, msg: '탈출 성공! 🎉' };
@@ -222,7 +222,7 @@ const CONFIG = {
       hotspots: [
         {
           id: 'tubes', x: 0.2, y: 0.2, size: 60,
-          icon: '🧪', label: '시험관',
+          iconType: 'tubes', label: '시험관',
           onTap: (g) => ({
             popup: {
               type: 'info',
@@ -233,7 +233,7 @@ const CONFIG = {
         },
         {
           id: 'notebook', x: 0.8, y: 0.2, size: 58,
-          icon: '📖', label: '연구노트',
+          iconType: 'notebook', label: '연구노트',
           onTap: (g) => ({
             popup: {
               type: 'info',
@@ -244,7 +244,7 @@ const CONFIG = {
         },
         {
           id: 'cabinet', x: 0.2, y: 0.56, size: 62,
-          icon: '🗃️', label: '캐비닛',
+          iconType: 'cabinet', label: '캐비닛',
           onTap: (g) => {
             if (g.flags.has('cabinet_open')) {
               return { msg: '캐비닛은 비어있다.' };
@@ -267,7 +267,7 @@ const CONFIG = {
         },
         {
           id: 'desk', x: 0.5, y: 0.56, size: 60,
-          icon: '📐', label: '책상',
+          iconType: 'desk', label: '책상',
           onTap: (g) => {
             if (!g.flags.has('battery_found')) {
               g.flags.add('battery_found');
@@ -279,7 +279,7 @@ const CONFIG = {
         },
         {
           id: 'darkwall', x: 0.82, y: 0.25, size: 60,
-          icon: '⬛', label: '어두운 벽',
+          iconType: 'darkwall', label: '어두운 벽',
           onTap: (g) => {
             if (g.flags.has('wall_lit')) {
               return {
@@ -305,7 +305,7 @@ const CONFIG = {
         },
         {
           id: 'door', x: 0.82, y: 0.6, size: 70,
-          icon: '🚪', label: '출구',
+          iconType: 'door', label: '출구',
           onTap: (g) => {
             if (g.flags.has('door_open')) {
               return { complete: true, msg: '탈출 성공! 🎉' };
@@ -349,7 +349,7 @@ const CONFIG = {
       hotspots: [
         {
           id: 'globe', x: 0.2, y: 0.2, size: 60,
-          icon: '🌍', label: '지구본',
+          iconType: 'globe', label: '지구본',
           onTap: (g) => {
             if (!g.flags.has('globe_spun')) {
               g.flags.add('globe_spun');
@@ -365,7 +365,7 @@ const CONFIG = {
         },
         {
           id: 'bookshelf', x: 0.5, y: 0.18, size: 66,
-          icon: '📚', label: '책장',
+          iconType: 'bookshelf', label: '책장',
           onTap: (g) => ({
             popup: {
               type: 'info',
@@ -376,7 +376,7 @@ const CONFIG = {
         },
         {
           id: 'candle', x: 0.8, y: 0.2, size: 58,
-          icon: '🕯️', label: '촛대',
+          iconType: 'candle', label: '촛대',
           onTap: (g) => {
             if (g.flags.has('scroll_read')) {
               return {
@@ -392,7 +392,7 @@ const CONFIG = {
         },
         {
           id: 'chest', x: 0.25, y: 0.56, size: 64,
-          icon: '🧰', label: '나무 상자',
+          iconType: 'chest', label: '나무 상자',
           onTap: (g) => {
             if (g.flags.has('chest_open')) {
               return { msg: '상자는 비어있다.' };
@@ -415,7 +415,7 @@ const CONFIG = {
         },
         {
           id: 'altar', x: 0.55, y: 0.58, size: 60,
-          icon: '⛩️', label: '제단',
+          iconType: 'altar', label: '제단',
           onTap: (g) => {
             if (g.flags.has('scroll_read')) {
               return { msg: '두루마리가 제단 위에 놓여있다.' };
@@ -433,7 +433,7 @@ const CONFIG = {
         },
         {
           id: 'door', x: 0.82, y: 0.6, size: 70,
-          icon: '🚪', label: '거대한 문',
+          iconType: 'door', label: '거대한 문',
           onTap: (g) => {
             if (g.hasItem('goldkey')) {
               g.removeItem('goldkey');
@@ -455,7 +455,7 @@ const CONFIG = {
       hotspots: [
         {
           id: 'skull', x: 0.2, y: 0.18, size: 64,
-          icon: '💀', label: '해골',
+          iconType: 'skull', label: '해골',
           onTap: (g) => ({
             popup: {
               type: 'info',
@@ -466,7 +466,7 @@ const CONFIG = {
         },
         {
           id: 'star_pedestal', x: 0.5, y: 0.18, size: 58,
-          icon: '⭐', label: '별 제단',
+          iconType: 'star', label: '별 제단',
           onTap: (g) => {
             if (g.flags.has('star_solved')) {
               return { msg: '별이 빛나고 있다.' };
@@ -488,7 +488,7 @@ const CONFIG = {
         },
         {
           id: 'moon_pedestal', x: 0.8, y: 0.18, size: 58,
-          icon: '🌙', label: '달 제단',
+          iconType: 'moon', label: '달 제단',
           onTap: (g) => {
             if (g.flags.has('moon_solved')) {
               return { msg: '달이 빛나고 있다.' };
@@ -513,7 +513,7 @@ const CONFIG = {
         },
         {
           id: 'sun_pedestal', x: 0.5, y: 0.5, size: 60,
-          icon: '☀️', label: '태양 제단',
+          iconType: 'sun', label: '태양 제단',
           onTap: (g) => {
             if (g.flags.has('sun_solved')) {
               return { msg: '태양이 빛나고 있다.' };
@@ -538,7 +538,7 @@ const CONFIG = {
         },
         {
           id: 'altar', x: 0.2, y: 0.55, size: 62,
-          icon: '🏺', label: '중앙 제단',
+          iconType: 'altar', label: '중앙 제단',
           onTap: (g) => {
             if (g.flags.has('sun_solved') && !g.flags.has('orb_taken')) {
               g.flags.add('orb_taken');
@@ -553,7 +553,7 @@ const CONFIG = {
         },
         {
           id: 'door', x: 0.82, y: 0.58, size: 72,
-          icon: '🚪', label: '마지막 문',
+          iconType: 'door', label: '마지막 문',
           onTap: (g) => {
             if (g.flags.has('door_open')) {
               return { complete: true, msg: '탈출 성공! 🎉\n\n모든 방을 탈출했다!' };

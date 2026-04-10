@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&display=swap');
-
 * {
   margin: 0;
   padding: 0;
@@ -10,8 +8,9 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #0a0510;
-  font-family: 'Nunito', sans-serif;
+  background: #000;
+  font-family: 'Crimson Text', Georgia, serif;
+  color: #e8e8e8;
   touch-action: none;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
@@ -19,8 +18,648 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
-canvas {
+#game-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: radial-gradient(ellipse at center, #0a0510 0%, #000 100%);
+}
+
+#game {
+  position: relative;
+  width: 390px;
+  height: 844px;
+  transform-origin: center center;
+  box-shadow:
+    0 0 100px rgba(212,149,106,0.15),
+    0 20px 60px rgba(0,0,0,0.9);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+#pixi-mount {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#pixi-mount canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+#ui-overlay {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  font-family: 'Crimson Text', serif;
+}
+
+#ui-overlay > .clickable,
+#ui-overlay button,
+#ui-overlay .popup-overlay,
+#ui-overlay .inventory,
+#ui-overlay .header-menu,
+#ui-overlay .menu {
+  pointer-events: auto;
+}
+
+/* ========== HEADER ========== */
+.header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 16px 20px 24px 20px;
+  background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.header-room {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  color: #d4956a;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.header-name {
+  font-family: 'Cinzel', serif;
+  font-size: 22px;
+  color: #f5e6a8;
+  margin-top: 4px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-shadow:
+    0 0 20px rgba(245,230,168,0.4),
+    0 2px 4px rgba(0,0,0,0.8);
+}
+
+.header-menu {
+  background: rgba(15,10,20,0.7);
+  border: 1px solid rgba(212,149,106,0.4);
+  color: #d4956a;
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  padding: 8px 18px;
+  border-radius: 20px;
+  cursor: pointer;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: all 0.2s;
+  font-weight: 600;
+}
+
+.header-menu:hover {
+  background: rgba(212,149,106,0.15);
+  border-color: #d4956a;
+}
+
+/* ========== INVENTORY ========== */
+.inventory {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 106px;
+  background: linear-gradient(0deg, rgba(0,0,0,0.95) 30%, rgba(0,0,0,0) 100%);
+  padding: 22px 16px 16px 16px;
+  z-index: 5;
+}
+
+.inventory-label {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  color: #8a9aaa;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.inventory-slots {
+  display: flex;
+  gap: 10px;
+}
+
+.inventory-slot {
+  width: 54px;
+  height: 54px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.3));
+  border: 1px solid rgba(212,149,106,0.2);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.inventory-slot::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent 50%);
+  pointer-events: none;
+}
+
+.inventory-slot.filled {
+  background: linear-gradient(180deg, rgba(212,149,106,0.15), rgba(212,149,106,0.05));
+  border-color: rgba(212,149,106,0.5);
+}
+
+.inventory-slot.selected {
+  background: linear-gradient(180deg, rgba(212,149,106,0.3), rgba(212,149,106,0.15));
+  border-color: #f5e6a8;
+  box-shadow:
+    0 0 25px rgba(212,149,106,0.6),
+    inset 0 0 15px rgba(245,230,168,0.2);
+  transform: translateY(-3px) scale(1.05);
+}
+
+.inventory-selected-label {
+  position: absolute;
+  right: 16px;
+  top: 20px;
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  color: #f5e6a8;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  opacity: 0;
+  transition: opacity 0.2s;
+  font-weight: 600;
+}
+
+.inventory-selected-label.visible {
+  opacity: 1;
+}
+
+/* ========== POPUP ========== */
+.popup-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  opacity: 0;
+  padding: 20px;
+}
+
+.popup-overlay.visible {
+  animation: fadeIn 0.25s forwards;
+}
+
+@keyframes fadeIn {
+  to { opacity: 1; }
+}
+
+.popup {
+  width: 100%;
+  max-width: 340px;
+  background:
+    linear-gradient(180deg, rgba(35,22,40,0.98) 0%, rgba(15,8,20,0.98) 100%);
+  border: 1px solid rgba(212,149,106,0.5);
+  border-radius: 16px;
+  padding: 28px 24px;
+  box-shadow:
+    0 0 60px rgba(0,0,0,0.9),
+    inset 0 1px 0 rgba(212,149,106,0.3),
+    0 0 120px rgba(212,149,106,0.15);
+  transform: scale(0.85) translateY(20px);
+  position: relative;
+}
+
+.popup-overlay.visible .popup {
+  animation: popIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes popIn {
+  to { transform: scale(1) translateY(0); }
+}
+
+.popup::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at top, rgba(212,149,106,0.1), transparent 60%);
+  border-radius: 16px;
+  pointer-events: none;
+}
+
+.popup-title {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 16px;
+  color: #d4956a;
+  text-align: center;
+  margin-bottom: 18px;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  position: relative;
+}
+
+.popup-title::after {
+  content: '';
+  display: block;
+  width: 50px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #d4956a, transparent);
+  margin: 8px auto 0;
+}
+
+.popup-text {
+  font-family: 'Crimson Text', serif;
+  font-size: 16px;
+  line-height: 1.65;
+  color: #e8e8e8;
+  text-align: center;
+  margin-bottom: 20px;
+  white-space: pre-line;
+  position: relative;
+}
+
+.popup-hint {
+  display: inline-block;
+  font-family: 'Crimson Text', serif;
+  font-size: 12px;
+  color: #f5e6a8;
+  margin: 0 auto 14px;
+  font-style: italic;
+  opacity: 0.8;
+  padding: 6px 14px;
+  background: rgba(245,230,168,0.08);
+  border: 1px dashed rgba(245,230,168,0.3);
+  border-radius: 4px;
+}
+
+.popup-hint-wrap {
+  text-align: center;
+}
+
+.popup-button {
   display: block;
   margin: 0 auto;
+  padding: 11px 32px;
+  background: linear-gradient(180deg, #d4956a 0%, #8f5f3a 100%);
+  border: 1px solid rgba(245,230,168,0.4);
+  color: #0a0510;
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 13px;
+  border-radius: 22px;
   cursor: pointer;
+  box-shadow:
+    0 4px 16px rgba(0,0,0,0.5),
+    inset 0 1px 0 rgba(255,255,255,0.3);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  transition: transform 0.1s;
+  position: relative;
+}
+
+.popup-button:active {
+  transform: scale(0.96);
+}
+
+.popup-button.danger {
+  background: linear-gradient(180deg, #8a4050 0%, #5a2030 100%);
+  color: #f5e6a8;
+  border-color: rgba(233,69,96,0.5);
+}
+
+/* ========== KEYPAD ========== */
+.keypad-input {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.keypad-input-slot {
+  width: 42px;
+  height: 50px;
+  background: linear-gradient(180deg, rgba(0,0,0,0.7), rgba(0,0,0,0.4));
+  border: 2px solid rgba(212,149,106,0.3);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Cinzel', serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: #f5e6a8;
+  position: relative;
+}
+
+.keypad-input-slot.filled {
+  border-color: #d4956a;
+  box-shadow:
+    inset 0 0 12px rgba(212,149,106,0.4),
+    0 0 10px rgba(212,149,106,0.3);
+}
+
+.keypad-shake {
+  animation: shake 0.4s;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-8px); }
+  20%, 40%, 60%, 80% { transform: translateX(8px); }
+}
+
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 14px auto 20px;
+  max-width: 260px;
+}
+
+.keypad button {
+  padding: 0;
+  height: 50px;
+  background: linear-gradient(180deg, #2a2030 0%, #1a1020 100%);
+  border: 1px solid rgba(212,149,106,0.3);
+  color: #e8e8e8;
+  font-family: 'Cinzel', serif;
+  font-size: 20px;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.08s;
+  box-shadow:
+    0 2px 6px rgba(0,0,0,0.5),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.keypad button:active {
+  background: linear-gradient(180deg, #3a3040 0%, #2a2030 100%);
+  transform: scale(0.94);
+}
+
+.keypad button.delete {
+  background: linear-gradient(180deg, #6a2535 0%, #401520 100%);
+  border-color: rgba(233,69,96,0.4);
+}
+
+.keypad button.enter {
+  background: linear-gradient(180deg, #2a6a40 0%, #155025 100%);
+  border-color: rgba(126,232,160,0.4);
+  color: #f5e6a8;
+}
+
+/* ========== BOOKS POPUP ========== */
+.books-display {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin: 20px 0;
+}
+
+.book {
+  width: 58px;
+  height: 130px;
+  border-radius: 4px 6px 6px 4px;
+  position: relative;
+  box-shadow:
+    0 4px 12px rgba(0,0,0,0.6),
+    inset 2px 0 4px rgba(255,255,255,0.15),
+    inset -2px 0 4px rgba(0,0,0,0.4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.book::before,
+.book::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  height: 1px;
+  background: rgba(255,255,255,0.3);
+}
+
+.book::before { top: 22px; }
+.book::after { bottom: 22px; }
+
+.book-number {
+  font-family: 'Cinzel', serif;
+  font-weight: 800;
+  font-size: 36px;
+  color: rgba(0,0,0,0.55);
+  text-shadow: 0 1px 0 rgba(255,255,255,0.15);
+}
+
+.book-label {
+  display: block;
+  margin-top: 8px;
+  font-family: 'Crimson Text', serif;
+  font-size: 11px;
+  color: #8a9aaa;
+  text-align: center;
+}
+
+/* ========== MENU SCREEN ========== */
+.menu {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 80px 30px 60px;
+  background:
+    radial-gradient(ellipse at top, rgba(212,149,106,0.08), transparent 60%),
+    linear-gradient(180deg, #1a0a20 0%, #000 100%);
+  z-index: 20;
+}
+
+.menu-title {
+  font-family: 'Cinzel', serif;
+  font-weight: 800;
+  font-size: 58px;
+  color: #d4956a;
+  letter-spacing: 6px;
+  margin-top: 20px;
+  text-shadow:
+    0 0 30px rgba(212,149,106,0.6),
+    0 0 60px rgba(212,149,106,0.3),
+    0 4px 8px rgba(0,0,0,0.8);
+  animation: titlePulse 3s ease-in-out infinite;
+}
+
+@keyframes titlePulse {
+  0%, 100% {
+    text-shadow:
+      0 0 30px rgba(212,149,106,0.6),
+      0 0 60px rgba(212,149,106,0.3),
+      0 4px 8px rgba(0,0,0,0.8);
+  }
+  50% {
+    text-shadow:
+      0 0 45px rgba(212,149,106,0.85),
+      0 0 90px rgba(212,149,106,0.5),
+      0 4px 8px rgba(0,0,0,0.8);
+  }
+}
+
+.menu-subtitle {
+  font-family: 'Cinzel', serif;
+  font-size: 16px;
+  color: #8a9aaa;
+  margin-top: 10px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+}
+
+.menu-divider {
+  width: 120px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #d4956a, transparent);
+  margin: 30px 0;
+}
+
+.menu-decoration {
+  font-family: 'Cinzel', serif;
+  font-size: 16px;
+  color: #d4956a;
+  letter-spacing: 8px;
+  opacity: 0.6;
+}
+
+.menu-description {
+  font-family: 'Crimson Text', serif;
+  font-size: 15px;
+  color: #7a8a9a;
+  text-align: center;
+  margin-top: auto;
+  margin-bottom: 30px;
+  line-height: 1.7;
+  font-style: italic;
+}
+
+.menu-play {
+  padding: 16px 58px;
+  background: linear-gradient(180deg, #d4956a 0%, #8f5f3a 100%);
+  border: 1px solid rgba(245,230,168,0.4);
+  color: #0a0510;
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 16px;
+  border-radius: 32px;
+  cursor: pointer;
+  box-shadow:
+    0 10px 30px rgba(0,0,0,0.7),
+    0 0 50px rgba(212,149,106,0.4),
+    inset 0 1px 0 rgba(255,255,255,0.3);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  transition: all 0.2s;
+  margin-bottom: 16px;
+}
+
+.menu-play:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 14px 36px rgba(0,0,0,0.8),
+    0 0 60px rgba(212,149,106,0.6),
+    inset 0 1px 0 rgba(255,255,255,0.3);
+}
+
+.menu-play:active {
+  transform: scale(0.97);
+}
+
+.menu-progress {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  color: #7a8a9a;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 30px;
+}
+
+/* ========== STAGE COMPLETE ========== */
+.complete {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.9);
+  z-index: 30;
+  padding: 40px;
+}
+
+.complete-title {
+  font-family: 'Cinzel', serif;
+  font-weight: 800;
+  font-size: 48px;
+  color: #7ee8a0;
+  letter-spacing: 6px;
+  text-shadow:
+    0 0 40px rgba(126,232,160,0.6),
+    0 0 80px rgba(126,232,160,0.3);
+  animation: completeGlow 2s ease-in-out infinite;
+}
+
+@keyframes completeGlow {
+  0%, 100% { text-shadow: 0 0 40px rgba(126,232,160,0.6), 0 0 80px rgba(126,232,160,0.3); }
+  50% { text-shadow: 0 0 60px rgba(126,232,160,0.9), 0 0 120px rgba(126,232,160,0.5); }
+}
+
+.complete-subtitle {
+  font-family: 'Cinzel', serif;
+  font-size: 16px;
+  color: #e8e8e8;
+  margin-top: 16px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+.complete-button {
+  padding: 14px 52px;
+  background: linear-gradient(180deg, #7ee8a0 0%, #4fbf75 100%);
+  border: none;
+  color: #0a0510;
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 15px;
+  border-radius: 28px;
+  cursor: pointer;
+  box-shadow:
+    0 8px 24px rgba(0,0,0,0.6),
+    0 0 40px rgba(126,232,160,0.4);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-top: 50px;
+}
+
+.complete-button:active {
+  transform: scale(0.95);
 }

@@ -6,17 +6,24 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0a0510">
-  <title>Escape - 방탈출</title>
+  <title>ESCAPE — 방탈출</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;800&family=Crimson+Text:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.4.0/dist/pixi.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pixi-filters@5.4.0/dist/browser/pixi-filters.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
 </head>
 <body>
-  <canvas id="gameCanvas"></canvas>
+  <div id="game-container">
+    <div id="game">
+      <div id="pixi-mount"></div>
+      <div id="ui-overlay"></div>
+    </div>
+  </div>
   <script src="js/config.js"></script>
   <script src="js/audio.js"></script>
-  <script src="js/particles.js"></script>
+  <script src="js/icons.js"></script>
   <script src="js/scene.js"></script>
-  <script src="js/popup.js"></script>
-  <script src="js/inventory.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/main.js"></script>
 </body>
