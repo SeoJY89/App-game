@@ -92,7 +92,7 @@ const CONFIG = {
                 type: 'keypad',
                 title: '서랍 - 4자리 코드',
                 length: 4,
-                answer: '2757',
+                answer: '2759',
                 hint: '빨 → 초 → 파 → 노'
               },
               onCorrect: (g) => {
@@ -476,8 +476,8 @@ const CONFIG = {
                 type: 'keypad',
                 title: '별의 퍼즐',
                 length: 2,
-                answer: '11',
-                hint: '별의 뾰족한 끝 개수 + 해골의 눈'
+                answer: '07',
+                hint: '별의 뾰족한 끝(5) + 해골의 눈(2)'
               },
               onCorrect: (g) => {
                 g.flags.add('star_solved');
